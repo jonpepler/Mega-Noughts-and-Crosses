@@ -42,6 +42,13 @@ export function Cell({
     transition: "background-color 0.15s, opacity 0.15s",
     padding: 0,
     boxSizing: "border-box",
+    // As a 1fr grid item the cell must be allowed to shrink below its content,
+    // otherwise the mark glyph sets a min-content size that grows that cell's
+    // track and distorts the whole sub-board the moment a symbol is placed.
+    minWidth: 0,
+    minHeight: 0,
+    overflow: "hidden",
+    lineHeight: 1,
   };
 
   return (

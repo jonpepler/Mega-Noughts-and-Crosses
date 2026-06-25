@@ -142,6 +142,34 @@ test("two pages play a full game; X wins", async ({ browser }) => {
       timeout: 5_000,
     });
 
+    // --- Layout regression: sub-boards must remain the same size after a mark
+    // is placed. Before the minWidth:0/minHeight:0 fix, the sub-board containing
+    // a mark would grow its 1fr grid track because the glyph set a min-content
+    // size larger than the other sub-boards. Assert once, right after the first
+    // move has synced to both pages (so one sub-board has a mark, the rest do not).
+    if (i === 0) {
+      const subBoards = hostPage.locator('[aria-label^="sub-board"]');
+      await expect(subBoards).toHaveCount(9);
+      const boxes = await Promise.all(
+        Array.from({ length: 9 }, (_, idx) => subBoards.nth(idx).boundingBox()),
+      );
+      const widths = boxes.map((b) => {
+        if (!b) throw new Error("sub-board bounding box was null");
+        return b.width;
+      });
+      const heights = boxes.map((b) => {
+        if (!b) throw new Error("sub-board bounding box was null");
+        return b.height;
+      });
+      const maxW = Math.max(...widths);
+      const minW = Math.min(...widths);
+      const maxH = Math.max(...heights);
+      const minH = Math.min(...heights);
+      const TOLERANCE = 1.5; // px — rounding should be < 1px; pre-fix delta was several px
+      expect(maxW - minW).toBeLessThanOrEqual(TOLERANCE);
+      expect(maxH - minH).toBeLessThanOrEqual(TOLERANCE);
+    }
+
     turn = turn === "X" ? "O" : "X";
   }
 

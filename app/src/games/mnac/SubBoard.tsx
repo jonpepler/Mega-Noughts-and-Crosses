@@ -41,6 +41,10 @@ export function SubBoard({
     outlineOffset: "1px",
     boxSizing: "border-box",
     containerType: "size",
+    // The sub-board is itself a 1fr grid item in the Board; allow it to shrink
+    // below its content so a placed mark cannot grow this sub-board's track.
+    minWidth: "0",
+    minHeight: "0",
   };
 
   // Won or drawn sub-board overlay
