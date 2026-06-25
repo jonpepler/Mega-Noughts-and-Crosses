@@ -165,7 +165,7 @@ export function useGameRoom<S, M>(
           players: players as string[],
         });
       } else {
-        room = joinClient(definition, transport);
+        room = joinClient(transport);
       }
 
       roomRef.current = room;

@@ -1,4 +1,4 @@
-import type { GameDefinition, GameResult } from "../game";
+import type { GameResult } from "../game";
 import type { PeerId, Transport, TransportMessage } from "../transport/transport";
 import {
   MSG,
@@ -15,7 +15,6 @@ import {
  * role from the host's `assign-role` message.
  */
 export function joinClient<S, M>(
-  def: GameDefinition<S, M>,
   transport: Transport,
 ): GameRoom<S, M> {
   let state: S | null = null;
@@ -126,10 +125,6 @@ export function joinClient<S, M>(
       transport.leave();
     },
   };
-
-  // `def` is part of the signature (Task 5 / parity with the host) and reserved
-  // for client-side prediction; today the host is authoritative so it is unused.
-  void def;
 
   return room;
 }

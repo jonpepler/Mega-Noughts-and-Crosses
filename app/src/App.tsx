@@ -12,7 +12,7 @@ import { selectTransportFactory } from "./transport-selection";
 // Persistence (module-level singleton so it survives React renders)
 // ---------------------------------------------------------------------------
 
-const persistence = makeLocalStoragePersistence();
+const persistence = makeLocalStoragePersistence({ key: "mnac:room" });
 
 // ---------------------------------------------------------------------------
 // Seed derivation — deterministic, derived from room code.

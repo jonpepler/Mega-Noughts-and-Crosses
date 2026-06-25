@@ -4,7 +4,7 @@ export interface PersistenceRepository {
   clear(): void;
 }
 
-const DEFAULT_KEY = "mnac:room";
+const DEFAULT_KEY = "game:room";
 
 export function makeLocalStoragePersistence(opts?: {
   storage?: Storage;

@@ -77,7 +77,8 @@ export function startHost<S, M>(
 
   /** Try to apply a move by `by`; returns the rejection reason or null on success. */
   function tryApply(move: M, by: string): string | null {
-    if (def.currentPlayer(canonical) !== by) {
+    const cp = def.currentPlayer(canonical);
+    if (cp !== null && cp !== by) {
       return "not your turn";
     }
     const validation = def.validateMove(canonical, move, by);

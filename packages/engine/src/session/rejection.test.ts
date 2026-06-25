@@ -70,7 +70,7 @@ describe("lastRejection – client", () => {
     const ht = await f.join("r");
     const ct = await f.join("r");
     startHost(testDef, ht, { seed: 1, players: ["p0", "p1"] });
-    const client = joinClient(testDef, ct);
+    const client = joinClient<TestState, TestMove>(ct);
     await tick();
 
     // Sanity: it is p0's (host's) turn; client is p1.
@@ -94,7 +94,7 @@ describe("lastRejection – client", () => {
     const ht = await f.join("r");
     const ct = await f.join("r");
     const host = startHost(testDef, ht, { seed: 1, players: ["p0", "p1"] });
-    const client = joinClient(testDef, ct);
+    const client = joinClient<TestState, TestMove>(ct);
     await tick();
 
     // Client (p1) tries to move out of turn → rejection set.
@@ -113,7 +113,7 @@ describe("lastRejection – client", () => {
     const ht = await f.join("r");
     const ct = await f.join("r");
     startHost(testDef, ht, { seed: 1, players: ["p0", "p1"] });
-    const client = joinClient(testDef, ct);
+    const client = joinClient<TestState, TestMove>(ct);
     await tick();
 
     // First move (seq=1) is invalid.
@@ -194,7 +194,7 @@ describe("lastRejection – host", () => {
     const ht = await f.join("r");
     const ct = await f.join("r");
     startHost(testDef, ht, { seed: 1, players: ["p0", "p1"] });
-    const client = joinClient(testDef, ct);
+    const client = joinClient<TestState, TestMove>(ct);
     await tick();
 
     let notified = false;
@@ -213,7 +213,7 @@ describe("lastRejection – host", () => {
     const ht = await f.join("r");
     const ct = await f.join("r");
     const host = startHost(testDef, ht, { seed: 1, players: ["p0", "p1"] });
-    const client = joinClient(testDef, ct);
+    const client = joinClient<TestState, TestMove>(ct);
     await tick();
 
     // p0's turn; host (p0) makes an invalid move → lastRejection is set.
@@ -237,5 +237,90 @@ describe("lastRejection – host", () => {
 
     // The host's stale rejection must now be cleared.
     expect(host.lastRejection).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Nit 3: post-game rejection uses the game's own reason, not "not your turn"
+// ---------------------------------------------------------------------------
+
+// A game that ends immediately when cell 0 is claimed, and where
+// currentPlayer() returns null once the game is over.
+const terminalDef: GameDefinition<TestState, TestMove> = {
+  setup(players): TestState {
+    return { players: [...players], turn: 0, claimed: {} };
+  },
+  currentPlayer(state): string | null {
+    const owner = state.claimed[0];
+    if (owner !== undefined) return null; // game is over
+    return state.players[state.turn % state.players.length] as string;
+  },
+  validateMove(state, move): MoveValidation {
+    const owner = state.claimed[0];
+    if (owner !== undefined) {
+      return { ok: false, reason: "The game is already over." };
+    }
+    if (move.cell < 0 || move.cell > 8) {
+      return { ok: false, reason: "out of range" };
+    }
+    if (state.claimed[move.cell] !== undefined) {
+      return { ok: false, reason: "already claimed" };
+    }
+    return { ok: true };
+  },
+  applyMove(state, move, by): TestState {
+    return {
+      players: state.players,
+      turn: state.turn + 1,
+      claimed: { ...state.claimed, [move.cell]: by },
+    };
+  },
+  getResult(state): GameResult<string> {
+    const owner = state.claimed[0];
+    if (owner !== undefined) return { status: "win", winner: owner };
+    return { status: "ongoing" };
+  },
+};
+
+describe("post-game rejection (Nit 3)", () => {
+  test("move after game ends is rejected with game-over reason, not 'not your turn'", async () => {
+    const f = makeMemoryFactory();
+    const ht = await f.join("term-room");
+    const ct = await f.join("term-room");
+    const host = startHost(terminalDef, ht, { seed: 1, players: ["p0", "p1"] });
+    const client = joinClient<TestState, TestMove>(ct);
+    await tick();
+
+    // p0 (host) claims cell 0 — this ends the game.
+    host.makeMove({ cell: 0 });
+    await tick();
+
+    // Game is now over: host.result.status should be "win".
+    expect(host.result.status).toBe("win");
+
+    // p1 (client) tries to move after game over.
+    client.makeMove({ cell: 1 });
+    await tick();
+
+    // Should be rejected with the game-over reason, not "not your turn".
+    expect(client.lastRejection).not.toBeNull();
+    expect(client.lastRejection?.reason).toBe("The game is already over.");
+  });
+
+  test("wrong-turn move is still rejected with 'not your turn' (no regression)", async () => {
+    const f = makeMemoryFactory();
+    const ht = await f.join("turn-room");
+    const ct = await f.join("turn-room");
+    startHost(terminalDef, ht, { seed: 1, players: ["p0", "p1"] });
+    const client = joinClient<TestState, TestMove>(ct);
+    await tick();
+
+    // It is p0's turn. Client is p1. Client tries to move out of turn.
+    expect(client.myRole).toBe("p1");
+    client.makeMove({ cell: 3 });
+    await tick();
+
+    expect(client.lastRejection).not.toBeNull();
+    expect(client.lastRejection?.reason).toBe("not your turn");
   });
 });

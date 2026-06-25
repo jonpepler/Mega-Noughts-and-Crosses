@@ -6,23 +6,7 @@ import type {
   TransportFactory,
   TransportMessage,
 } from "./transport";
-
-type Listener<T> = (val: T) => void;
-
-function makeSet<T>() {
-  const set = new Set<Listener<T>>();
-  return {
-    add(fn: Listener<T>) {
-      set.add(fn);
-      return () => {
-        set.delete(fn);
-      };
-    },
-    emit(val: T) {
-      for (const fn of set) fn(val);
-    },
-  };
-}
+import { makeSet } from "../internal/listeners";
 
 // The wire format sent over trystero actions.
 // We need a type that satisfies trystero's DataPayload constraint (JSON-safe).
@@ -105,10 +89,26 @@ export class NostrTransport implements Transport {
   }
 }
 
-export function makeNostrFactory(opts: { appId: string }): TransportFactory {
+const DEFAULT_RELAY_URLS = [
+  "wss://relay.damus.io",
+  "wss://nos.lol",
+  "wss://relay.nostr.band",
+  "wss://relay.primal.net",
+  "wss://nostr.wine",
+];
+
+const DEFAULT_RELAY_REDUNDANCY = 4;
+
+export function makeNostrFactory(opts: {
+  appId: string;
+  relayUrls?: string[];
+  relayRedundancy?: number;
+}): TransportFactory {
+  const relayUrls = opts.relayUrls ?? DEFAULT_RELAY_URLS;
+  const relayRedundancy = opts.relayRedundancy ?? DEFAULT_RELAY_REDUNDANCY;
   return {
     async join(roomCode: string): Promise<Transport> {
-      const room = joinRoom({ appId: opts.appId }, roomCode);
+      const room = joinRoom({ appId: opts.appId, relayUrls, relayRedundancy }, roomCode);
       return new NostrTransport(room);
     },
   };

@@ -4,21 +4,7 @@ import type {
   TransportFactory,
   TransportMessage,
 } from "./transport";
-
-type Listener<T> = (val: T) => void;
-
-function makeSet<T>() {
-  const set = new Set<Listener<T>>();
-  return {
-    add(fn: Listener<T>) {
-      set.add(fn);
-      return () => { set.delete(fn); };
-    },
-    emit(val: T) {
-      for (const fn of set) fn(val);
-    },
-  };
-}
+import { makeSet } from "../internal/listeners";
 
 interface RoomHub {
   members: Map<PeerId, MemoryTransport>;

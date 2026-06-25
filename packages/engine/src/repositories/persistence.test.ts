@@ -36,7 +36,7 @@ test("clear removes the stored data", () => {
 
 test("loadRoom returns null for malformed JSON", () => {
   const storage = makeMemoryStorage();
-  storage.setItem("mnac:room", "not-valid-json{{{");
+  storage.setItem("game:room", "not-valid-json{{{");
   const repo = makeLocalStoragePersistence({ storage });
   expect(repo.loadRoom()).toBeNull();
 });

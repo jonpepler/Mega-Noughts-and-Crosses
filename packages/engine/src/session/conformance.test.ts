@@ -235,7 +235,7 @@ describe("DiceRace conformance – engine generality", () => {
     const ht = await f.join("room");
     const ct = await f.join("room");
     const host = startHost(diceRaceGame, ht, { seed: 7, players: ["alice", "bob"] });
-    const client = joinClient(diceRaceGame, ct);
+    const client = joinClient<DiceRaceState, DiceRaceMove>(ct);
     await tick();
 
     // Host is alice (players[0]), client is bob (players[1]).
@@ -259,7 +259,7 @@ describe("DiceRace conformance – engine generality", () => {
     const ht = await f.join("room2");
     const ct = await f.join("room2");
     const host = startHost(diceRaceGame, ht, { seed: 3, players: ["alice", "bob"] });
-    const client = joinClient(diceRaceGame, ct);
+    const client = joinClient<DiceRaceState, DiceRaceMove>(ct);
     await tick();
 
     // Host (alice) makes a move; scores should update.
@@ -280,7 +280,7 @@ describe("DiceRace conformance – engine generality", () => {
     const ht = await f.join("room3");
     const ct = await f.join("room3");
     const host = startHost(diceRaceGame, ht, { seed: 5, players: ["alice", "bob"] });
-    const client = joinClient(diceRaceGame, ct);
+    const client = joinClient<DiceRaceState, DiceRaceMove>(ct);
     await tick();
 
     // Drive the game to completion by alternating moves.
@@ -315,7 +315,7 @@ describe("DiceRace conformance – engine generality", () => {
     const ht = await f.join("rng-room");
     const ct = await f.join("rng-room");
     const host = startHost(diceRaceGame, ht, { seed: SEED, players: PLAYERS });
-    const client = joinClient(diceRaceGame, ct);
+    const client = joinClient<DiceRaceState, DiceRaceMove>(ct);
     await tick();
 
     for (let step = 0; step < 100; step++) {
@@ -366,7 +366,7 @@ describe("DiceRace conformance – engine generality", () => {
       seed: targetSeed,
       players: ["alice", "bob"],
     });
-    const client2 = joinClient(diceRaceGame, ct2);
+    const client2 = joinClient<DiceRaceState, DiceRaceMove>(ct2);
     await tick();
 
     // Alice moves; it should still be alice's turn (extra turn).

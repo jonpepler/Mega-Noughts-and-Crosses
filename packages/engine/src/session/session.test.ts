@@ -53,7 +53,7 @@ test("host validates, applies, and broadcasts; client move syncs", async () => {
   const ht = await f.join("r");
   const ct = await f.join("r");
   const host = startHost(testDef, ht, { seed: 1, players: ["p0", "p1"] });
-  const client = joinClient(testDef, ct);
+  const client = joinClient<TestState, TestMove>(ct);
   await tick();
 
   // host assigns roles: host is players[0], client players[1]
@@ -77,7 +77,7 @@ test("roles are assigned to host and each joining peer in roster order", async (
   const ht = await f.join("r");
   const ct = await f.join("r");
   const host = startHost(testDef, ht, { seed: 1, players: ["p0", "p1"] });
-  const client = joinClient(testDef, ct);
+  const client = joinClient<TestState, TestMove>(ct);
   await tick();
 
   expect(host.myRole).toBe("p0");
@@ -91,7 +91,7 @@ test("a valid client move is applied by the host and synced everywhere", async (
   const ht = await f.join("r");
   const ct = await f.join("r");
   const host = startHost(testDef, ht, { seed: 1, players: ["p0", "p1"] });
-  const client = joinClient(testDef, ct);
+  const client = joinClient<TestState, TestMove>(ct);
   await tick();
 
   // p0 (host) takes cell 1, then it is p1's (client) turn.
@@ -113,7 +113,7 @@ test("an invalid move (already claimed cell) is rejected, state unchanged", asyn
   const ht = await f.join("r");
   const ct = await f.join("r");
   const host = startHost(testDef, ht, { seed: 1, players: ["p0", "p1"] });
-  const client = joinClient(testDef, ct);
+  const client = joinClient<TestState, TestMove>(ct);
   await tick();
 
   // host claims cell 5 (now p1's turn)
@@ -144,7 +144,7 @@ test("connectedPlayers reflects who is connected, on both sides and on leave", a
   });
 
   const ct = await f.join("r");
-  const client = joinClient(testDef, ct);
+  const client = joinClient<TestState, TestMove>(ct);
   await tick();
 
   // After the client connects, BOTH rooms report both roster roles, in order.
@@ -165,7 +165,7 @@ test("subscribe is notified on state change and unsubscribe stops it", async () 
   const ht = await f.join("r");
   const ct = await f.join("r");
   const host = startHost(testDef, ht, { seed: 1, players: ["p0", "p1"] });
-  const client = joinClient(testDef, ct);
+  const client = joinClient<TestState, TestMove>(ct);
   await tick();
 
   let calls = 0;
@@ -229,7 +229,7 @@ test("view projection: client only receives its own visible state", async () => 
   const ht = await f.join("r");
   const ct = await f.join("r");
   const host = startHost(hiddenDef, ht, { seed: 1, players: ["p0", "p1"] });
-  const client = joinClient(hiddenDef, ct);
+  const client = joinClient<TestState, TestMove>(ct);
   await tick();
 
   // host (p0) claims cell 7; client (p1) must NOT see it under projection.
@@ -253,7 +253,7 @@ test("forged state/assign-role from a non-host peer is ignored by the client", a
   const ht = await f.join("r");
   const ct = await f.join("r");
   startHost(testDef, ht, { seed: 1, players: ["p0", "p1"] });
-  const client = joinClient(testDef, ct);
+  const client = joinClient<TestState, TestMove>(ct);
   await tick();
 
   // Confirm legitimate host assignment was received.
