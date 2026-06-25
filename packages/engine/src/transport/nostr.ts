@@ -94,7 +94,7 @@ const DEFAULT_RELAY_URLS = [
   "wss://nos.lol",
   "wss://relay.nostr.band",
   "wss://relay.primal.net",
-  "wss://nostr.wine",
+  "wss://relay.snort.social",
 ];
 
 const DEFAULT_RELAY_REDUNDANCY = 4;
