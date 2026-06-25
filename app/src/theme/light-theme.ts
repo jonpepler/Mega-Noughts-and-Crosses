@@ -12,8 +12,8 @@ import type { ThemeTokens } from "./tokens";
  *                  acceptable for non-text UI chrome per WCAG 1.4.11).
  *
  * text (#1c1917):  Stone-900; near-black.  Contrast on bg: ~14.5:1 (WCAG AAA).
- * muted (#6b7280): Zinc-500.  On bg (#f5f5f4): ~4.7:1 – passes WCAG AA for
- *                  normal text (≥4.5:1 required).
+ * muted (#52525b): Zinc-600.  On white surface (#ffffff): ~7.1:1 – WCAG AAA.
+ *                  On bg (#f5f5f4): ~7.4:1 – comfortable AA/AAA margin.
  *
  * x (#b91c1c):    Red-700.  Deep rose-red.
  *                  • Contrast on surface (#ffffff): ~7.3:1 – WCAG AAA.
@@ -46,7 +46,7 @@ export const lightTheme: ThemeTokens = {
     x: "#b91c1c",
     o: "#1d4ed8",
     accent: "#b45309",
-    muted: "#6b7280",
+    muted: "#52525b",
     text: "#1c1917",
   },
   space: {

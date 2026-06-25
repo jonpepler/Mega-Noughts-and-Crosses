@@ -200,4 +200,10 @@ describe("useThemePreference", () => {
 
     expect(mql._listenerCount()).toBe(0);
   });
+
+  test("does not attach matchMedia listener when override is present at mount", () => {
+    localStorage.setItem("mnac:theme", "dark");
+    renderHook(() => useThemePreference());
+    expect(mql._listenerCount()).toBe(0);
+  });
 });

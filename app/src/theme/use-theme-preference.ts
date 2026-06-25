@@ -52,6 +52,10 @@ export function useThemePreference(): ThemePreference {
       return;
     }
 
+    // No-op when a stored override already exists — the listener would be
+    // ignored inside handleChange anyway, so skip attaching it entirely.
+    if (hasOverride.current) return;
+
     const mql = window.matchMedia(MEDIA_QUERY);
 
     const handleChange = (e: { matches: boolean }) => {
