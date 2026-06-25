@@ -4,6 +4,12 @@ node_modules/
 # Build output
 dist/
 build/
+*.tsbuildinfo
+# Compiled vite config (emitted by tsc -b composite build)
+app/vite.config.js
+app/vite.config.js.map
+app/vite.config.d.ts
+app/vite.config.d.ts.map
 
 # Test artifacts
 coverage/
