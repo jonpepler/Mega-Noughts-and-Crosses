@@ -30,6 +30,8 @@ class MemoryTransport implements Transport {
   private joinListeners = makeSet<PeerId>();
   private leaveListeners = makeSet<PeerId>();
   private messageListeners = makeSet<TransportMessage>();
+  private left = false;
+  private pendingJoinTimers: ReturnType<typeof setTimeout>[] = [];
 
   constructor(
     selfId: PeerId,
@@ -65,6 +67,11 @@ class MemoryTransport implements Transport {
   }
 
   leave(): void {
+    this.left = true;
+    for (const timer of this.pendingJoinTimers) {
+      clearTimeout(timer);
+    }
+    this.pendingJoinTimers = [];
     this.hub.members.delete(this.selfId);
     for (const [, peer] of this.hub.members) {
       peer.notifyLeave(this.selfId);
@@ -84,6 +91,17 @@ class MemoryTransport implements Transport {
   /** Called by the factory to notify this transport of a new peer. */
   notifyJoin(id: PeerId): void {
     this.joinListeners.emit(id);
+  }
+
+  /** Called by the factory to defer onPeerJoin emissions for pre-existing peers. */
+  scheduleDeferredJoins(existingIds: PeerId[]): void {
+    const timer = setTimeout(() => {
+      if (this.left) return;
+      for (const existingId of existingIds) {
+        this.notifyJoin(existingId);
+      }
+    }, 0);
+    this.pendingJoinTimers.push(timer);
   }
 }
 
@@ -118,11 +136,7 @@ export function makeMemoryFactory(): TransportFactory {
       // macrotask to guarantee these emissions land after the caller's
       // synchronous post-await code (including listener attachment) has run.
       if (existingIds.length > 0) {
-        setTimeout(() => {
-          for (const existingId of existingIds) {
-            transport.notifyJoin(existingId);
-          }
-        }, 0);
+        transport.scheduleDeferredJoins(existingIds);
       }
 
       return transport;

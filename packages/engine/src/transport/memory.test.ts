@@ -56,6 +56,24 @@ test("unsubscribing from onPeerJoin / onMessage stops further callbacks", async 
   expect(msgs).toHaveLength(0);
 });
 
+test("no stale onPeerJoin emissions after leave() before deferred callback fires", async () => {
+  const f = makeMemoryFactory();
+  // Establish a pre-existing peer.
+  await f.join("room-leave");
+
+  // Newcomer joins a populated room then immediately leaves before the deferred
+  // macrotask has a chance to fire.
+  const newcomer = await f.join("room-leave");
+  const joins: string[] = [];
+  newcomer.onPeerJoin((id) => joins.push(id));
+  newcomer.leave();
+
+  // Allow the macrotask to fire (if the guard is missing, it would emit here).
+  await nextMacrotask();
+
+  expect(joins).toHaveLength(0);
+});
+
 test("unicast send delivers only to the addressed peer", async () => {
   const f = makeMemoryFactory();
   const a = await f.join("room-uni");
