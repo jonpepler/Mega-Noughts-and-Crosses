@@ -28,7 +28,7 @@ export { makeLocalStoragePersistence } from "./repositories/persistence";
 
 // Session
 export { startHost, joinClient } from "./session";
-export type { GameRoom } from "./session";
+export type { GameRoom, GameRoomDebug } from "./session";
 
 // React bindings
 export { useGameRoom } from "./react/use-game-room";

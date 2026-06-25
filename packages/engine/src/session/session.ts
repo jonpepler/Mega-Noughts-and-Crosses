@@ -7,6 +7,18 @@ import type { GameResult } from "../game";
  * protocol message types and the GameRoom interface both sides implement.
  */
 
+/** Live diagnostics exposed by both host and client sessions for debugging. */
+export interface GameRoomDebug {
+  /** Number of transport-level peers currently visible (increments on join, decrements on leave). */
+  transportPeers: number;
+  /** Number of `hello` messages the client has sent (always 0 on the host). */
+  helloAttempts: number;
+  /** Whether a local role has been assigned. */
+  hasRole: boolean;
+  /** Whether a canonical state snapshot has been received / is available. */
+  hasState: boolean;
+}
+
 export interface GameRoom<State, Move> {
   /** Last state known locally (host: canonical projection; client: last received). */
   state: State | null;
@@ -32,6 +44,8 @@ export interface GameRoom<State, Move> {
    * next successful local apply.
    */
   lastRejection: { reason: string; seq: number } | null;
+  /** Live diagnostics for debugging connection issues. */
+  debug: GameRoomDebug;
   /** Host applies locally; client sends an intent to the host. */
   makeMove(move: Move): void;
   /** Notified on any state change; returns an unsubscribe function. */

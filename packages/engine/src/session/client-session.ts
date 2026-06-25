@@ -4,6 +4,7 @@ import {
   MSG,
   type AssignRolePayload,
   type GameRoom,
+  type GameRoomDebug,
   type RejectedPayload,
   type StatePayload,
 } from "./session";
@@ -16,8 +17,8 @@ import {
  */
 /** How often the client re-sends `hello` while still waiting to sync, and the
  * cap on attempts so a never-answering host cannot loop forever. */
-const DEFAULT_HELLO_RETRY_MS = 1000;
-const MAX_HELLO_ATTEMPTS = 30;
+const DEFAULT_HELLO_RETRY_MS = 400;
+const MAX_HELLO_ATTEMPTS = 75;
 
 export interface JoinClientOptions {
   /** Interval between `hello` re-sends while the handshake is incomplete. */
@@ -51,6 +52,7 @@ export function joinClient<S, M>(
   let left = false;
   let helloTimer: ReturnType<typeof setInterval> | null = null;
   let helloAttempts = 0;
+  let transportPeers = 0;
 
   function isSynced(): boolean {
     return myRole !== null && state !== null;
@@ -124,6 +126,10 @@ export function joinClient<S, M>(
     }
   });
 
+  const unsubPeerLeave = transport.onPeerLeave(() => {
+    transportPeers = Math.max(0, transportPeers - 1);
+  });
+
   // Discovery is client-initiated: announce ourselves once we see a peer (the
   // host). The memory transport delivers onPeerJoin for the already-present host
   // on a macrotask after construction, so this fires reliably regardless of
@@ -131,11 +137,13 @@ export function joinClient<S, M>(
   // messages arriving from the host are accepted as soon as they land.
   const unsubJoin = transport.onPeerJoin((peerId: PeerId) => {
     if (left) return;
+    transportPeers += 1;
     if (hostId === null) {
       hostId = peerId;
     }
-    // Send the first hello immediately; the interval is the recovery path for
-    // when this one (or the host's reply) is dropped on a not-yet-open channel.
+    // Count this as the first hello attempt and send it immediately; the interval
+    // is the recovery path for when this one (or the host's reply) is dropped.
+    helloAttempts += 1;
     transport.send(MSG.hello, {}, peerId);
     if (!isSynced()) startHelloRetry();
   });
@@ -162,6 +170,14 @@ export function joinClient<S, M>(
     get lastRejection(): { reason: string; seq: number } | null {
       return lastRejection;
     },
+    get debug(): GameRoomDebug {
+      return {
+        transportPeers,
+        helloAttempts,
+        hasRole: myRole !== null,
+        hasState: state !== null,
+      };
+    },
     makeMove(move: M): void {
       seq += 1;
       // Unicast the intent to the host only so it does not leak to spectators.
@@ -177,6 +193,7 @@ export function joinClient<S, M>(
       left = true;
       stopHelloRetry();
       unsubMessage();
+      unsubPeerLeave();
       unsubJoin();
       subscribers.clear();
       transport.leave();

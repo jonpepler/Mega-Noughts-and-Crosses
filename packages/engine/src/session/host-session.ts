@@ -4,6 +4,7 @@ import type { PeerId, Transport, TransportMessage } from "../transport/transport
 import {
   MSG,
   type GameRoom,
+  type GameRoomDebug,
   type MoveIntentPayload,
   type StatePayload,
 } from "./session";
@@ -35,6 +36,7 @@ export function startHost<S, M>(
   }
 
   let lastRejection: { reason: string; seq: number } | null = null;
+  let transportPeers = 0;
 
   /**
    * The host's authoritative set of currently-connected roles, in roster order.
@@ -108,9 +110,18 @@ export function startHost<S, M>(
     notify();
   }
 
+  const unsubJoin = transport.onPeerJoin((peerId: PeerId) => {
+    transportPeers += 1;
+    // Bidirectional discovery: proactively assign a role when a peer is seen,
+    // rather than only responding to the client's hello. assignRole is idempotent
+    // per peer, so a subsequent hello from the same peer is a safe no-op.
+    assignRole(peerId);
+  });
+
   const unsubMessage = transport.onMessage((msg: TransportMessage) => {
     if (msg.type === MSG.hello) {
-      // Discovery is client-initiated: respond with a role + initial state.
+      // Discovery can also be client-initiated: respond with a role + initial state.
+      // assignRole is idempotent, so this is safe even if onPeerJoin already fired.
       assignRole(msg.from);
       return;
     }
@@ -132,6 +143,7 @@ export function startHost<S, M>(
   });
 
   const unsubLeave = transport.onPeerLeave((peerId: PeerId) => {
+    transportPeers = Math.max(0, transportPeers - 1);
     if (!roleByPeer.delete(peerId)) return; // a spectator (no role) left
     // A connected role dropped: refresh remaining peers and our own subscribers
     // so presence-derived views (e.g. status) update without a manual counter.
@@ -157,6 +169,14 @@ export function startHost<S, M>(
     get lastRejection(): { reason: string; seq: number } | null {
       return lastRejection;
     },
+    get debug(): GameRoomDebug {
+      return {
+        transportPeers,
+        helloAttempts: 0,
+        hasRole: myRole !== null,
+        hasState: true, // host always has canonical state
+      };
+    },
     makeMove(move: M): void {
       if (myRole === null) return;
       const reason = tryApply(move, myRole);
@@ -178,6 +198,7 @@ export function startHost<S, M>(
       };
     },
     leave(): void {
+      unsubJoin();
       unsubMessage();
       unsubLeave();
       subscribers.clear();

@@ -14,6 +14,13 @@ import { selectTransportFactory } from "./transport-selection";
 import type { ThemeRepository } from "./theme/tokens";
 
 // ---------------------------------------------------------------------------
+// Diagnostic build tag — shown on-screen during connecting/waiting so users
+// can confirm they are not running a cached bundle. Easy to remove later.
+// ---------------------------------------------------------------------------
+
+const BUILD_TAG = "CONN-DIAG-1";
+
+// ---------------------------------------------------------------------------
 // Persistence (module-level singleton so it survives React renders)
 // ---------------------------------------------------------------------------
 
@@ -109,7 +116,7 @@ function GameView({
 }: GameViewProps): React.JSX.Element {
   const factory = useMemo(() => selectTransportFactory(search), [search]);
 
-  const { state, status, myRole, currentPlayer, makeMove, result } =
+  const { state, status, myRole, currentPlayer, makeMove, result, debug } =
     useGameRoom<MnacState, MnacMove>({
       definition: mnacGame,
       factory,
@@ -239,6 +246,17 @@ function GameView({
     lineHeight: 1.45,
   };
 
+  // Small monospace diagnostic line shown during connecting/waiting.
+  // Temporary — easy to remove by deleting this style + the JSX below.
+  const diagStyle: React.CSSProperties = {
+    fontSize: "0.7rem",
+    fontFamily: "monospace",
+    color: "var(--color-muted)",
+    textAlign: "center",
+    opacity: 0.75,
+    userSelect: "text",
+  };
+
   // Colour a player's mark glyph with its theme token (X coral, O blue).
   const markColor = (mark: string): string =>
     mark === "X" ? "var(--color-x)" : "var(--color-o)";
@@ -287,6 +305,12 @@ function GameView({
           <span style={stalledHintStyle}>
             This is taking longer than usual. Check the room code is correct
             and that the other player has opened the link.
+          </span>
+        )}
+
+        {(status === "connecting" || status === "waiting") && (
+          <span style={diagStyle} data-testid="conn-diag">
+            {`build ${BUILD_TAG} | peers ${debug.transportPeers} | hello ${debug.helloAttempts} | role ${debug.hasRole ? "yes" : "no"} | state ${debug.hasState ? "yes" : "no"}`}
           </span>
         )}
 
