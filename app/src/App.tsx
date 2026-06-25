@@ -72,7 +72,12 @@ function buildSearch(roomCode: string, hasLocal: boolean): string {
 
 function resolveRole(
   roomCode: string,
+  urlRole?: string | null,
 ): "host" | "join" {
+  // Explicit ?role=host or ?role=join URL param takes precedence
+  if (urlRole === "host") return "host";
+  if (urlRole === "join") return "join";
+  // Fall back to localStorage-based rule
   const saved = persistence.loadRoom();
   if (saved && saved.roomCode === roomCode && saved.role === "host") {
     return "host";
@@ -251,6 +256,7 @@ export default function App(): React.JSX.Element {
   const params = new URLSearchParams(search);
   const urlRoomCode = params.get("room");
   const hasLocal = params.has("local");
+  const urlRole = params.get("role"); // ?role=host or ?role=join override
 
   // Local state drives view when navigating without reload (lobby → game)
   const [gameRoom, setGameRoom] = useState<{
@@ -259,7 +265,7 @@ export default function App(): React.JSX.Element {
     seed: number;
   } | null>(() => {
     if (urlRoomCode) {
-      const role = resolveRole(urlRoomCode);
+      const role = resolveRole(urlRoomCode, urlRole);
       const seed = seedFromCode(urlRoomCode);
       return { roomCode: urlRoomCode, role, seed };
     }

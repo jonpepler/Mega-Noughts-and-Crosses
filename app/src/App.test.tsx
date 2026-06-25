@@ -76,6 +76,39 @@ describe("App", () => {
     );
   });
 
+  test("?role=host makes the app host even with no localStorage entry", async () => {
+    // No localStorage entry — without ?role override it would be a joiner
+    setSearch("/?room=roletest&local&role=host");
+    render(<App />);
+
+    // The app should enter game view (board or status rendered)
+    await waitFor(
+      () => {
+        const statusEl = screen.getByRole("status");
+        expect(statusEl).toBeInTheDocument();
+      },
+      { timeout: 3000 },
+    );
+  });
+
+  test("?role=join makes the app a joiner even if localStorage says host", async () => {
+    // Persist as host — but ?role=join should override
+    localStorage.setItem(
+      "mnac:room",
+      JSON.stringify({ roomCode: "roletest2", role: "host", seed: 42 }),
+    );
+    setSearch("/?room=roletest2&local&role=join");
+    render(<App />);
+
+    await waitFor(
+      () => {
+        const statusEl = screen.getByRole("status");
+        expect(statusEl).toBeInTheDocument();
+      },
+      { timeout: 3000 },
+    );
+  });
+
   test("share link in the waiting state does not contain ?local", async () => {
     localStorage.setItem(
       "mnac:room",
