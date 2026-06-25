@@ -129,6 +129,37 @@ test("an invalid move (already claimed cell) is rejected, state unchanged", asyn
   expect(host.currentPlayer).toBe("p1");
 });
 
+test("connectedPlayers reflects who is connected, on both sides and on leave", async () => {
+  const f = makeMemoryFactory();
+  const ht = await f.join("r");
+  const host = startHost(testDef, ht, { seed: 1, players: ["p0", "p1"] });
+
+  // Before any client joins, the host reports only itself.
+  expect(host.connectedPlayers).toEqual(["p0"]);
+
+  // The host is notified when the connected set changes.
+  let hostNotifications = 0;
+  host.subscribe(() => {
+    hostNotifications += 1;
+  });
+
+  const ct = await f.join("r");
+  const client = joinClient(testDef, ct);
+  await tick();
+
+  // After the client connects, BOTH rooms report both roster roles, in order.
+  expect(host.connectedPlayers).toEqual(["p0", "p1"]);
+  expect(client.connectedPlayers).toEqual(["p0", "p1"]);
+  const notificationsAfterJoin = hostNotifications;
+  expect(notificationsAfterJoin).toBeGreaterThan(0);
+
+  // After the client leaves, the host drops back to just itself and is notified.
+  ct.leave();
+  await tick();
+  expect(host.connectedPlayers).toEqual(["p0"]);
+  expect(hostNotifications).toBeGreaterThan(notificationsAfterJoin);
+});
+
 test("subscribe is notified on state change and unsubscribe stops it", async () => {
   const f = makeMemoryFactory();
   const ht = await f.join("r");
@@ -248,6 +279,7 @@ test("forged state/assign-role from a non-host peer is ignored by the client", a
     state: forgedState,
     result: { status: "win", winner: "p0" },
     players: ["p0", "p1"],
+    connectedPlayers: ["p0", "p1"],
     currentPlayer: null,
   });
   spectatorTransport.send("assign-role", { playerId: "spectator-impersonator" });

@@ -20,6 +20,7 @@ export function joinClient<S, M>(
   let state: S | null = null;
   let result: GameResult<string> = { status: "ongoing" };
   let players: string[] = [];
+  let connectedPlayers: string[] = [];
   let myRole: string | null = null;
   let currentPlayer: string | null = null;
   let seq = 0;
@@ -51,6 +52,7 @@ export function joinClient<S, M>(
         state = payload.state;
         result = payload.result;
         players = payload.players;
+        connectedPlayers = payload.connectedPlayers;
         currentPlayer = payload.currentPlayer;
         notify();
         break;
@@ -83,6 +85,9 @@ export function joinClient<S, M>(
     },
     get players(): string[] {
       return players;
+    },
+    get connectedPlayers(): string[] {
+      return connectedPlayers;
     },
     get myRole(): string | null {
       return myRole;

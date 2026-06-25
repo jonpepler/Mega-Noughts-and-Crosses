@@ -36,26 +36,24 @@ interface RoomSnapshot<S> {
   state: S | null;
   result: GameResult<string>;
   players: string[];
+  /** The host's authoritative connected roles; presence is derived from this. */
+  connectedPlayers: string[];
   myRole: string | null;
   currentPlayer: string | null;
-  peers: number;
 }
 
 const DEFAULT_SEED = 0;
 const INITIAL_RESULT: GameResult<string> = { status: "ongoing" };
 
 /** Build a snapshot from the current room state. */
-function snapshotFrom<S, M>(
-  room: GameRoom<S, M>,
-  peers: number,
-): RoomSnapshot<S> {
+function snapshotFrom<S, M>(room: GameRoom<S, M>): RoomSnapshot<S> {
   return {
     state: room.state,
     result: room.result,
     players: [...room.players],
+    connectedPlayers: [...room.connectedPlayers],
     myRole: room.myRole,
     currentPlayer: room.currentPlayer,
-    peers,
   };
 }
 
@@ -65,7 +63,6 @@ function snapshotsEqual<S>(a: RoomSnapshot<S>, b: RoomSnapshot<S>): boolean {
   if (a.state !== b.state) return false;
   if (a.myRole !== b.myRole) return false;
   if (a.currentPlayer !== b.currentPlayer) return false;
-  if (a.peers !== b.peers) return false;
   // Compare result by status and winner/scores
   if (a.result.status !== b.result.status) return false;
   if (a.result.status === "win" && b.result.status === "win") {
@@ -80,25 +77,29 @@ function snapshotsEqual<S>(a: RoomSnapshot<S>, b: RoomSnapshot<S>): boolean {
   for (let i = 0; i < a.players.length; i++) {
     if (a.players[i] !== b.players[i]) return false;
   }
+  // Compare connectedPlayers element-wise: the host rebuilds this array on each
+  // presence change, so a reference check would always report "changed".
+  if (a.connectedPlayers.length !== b.connectedPlayers.length) return false;
+  for (let i = 0; i < a.connectedPlayers.length; i++) {
+    if (a.connectedPlayers[i] !== b.connectedPlayers[i]) return false;
+  }
   return true;
 }
 
-/** Derive status from snapshot and whether the room is connected. */
+/** Derive status from the room snapshot's authoritative connected set. */
 function deriveStatus<S>(
   snapshot: RoomSnapshot<S> | null,
 ): "connecting" | "waiting" | "playing" | "ended" {
   if (snapshot === null) return "connecting";
 
-  const { result, players, peers } = snapshot;
+  const { result, players, connectedPlayers } = snapshot;
   if (result.status !== "ongoing") return "ended";
 
-  // "playing" requires enough players to be present; for a 2-player game we
-  // need at least 2 players in the roster AND the peer connected.
-  const rosterFull = players.length >= 2;
-  const peerConnected = peers > 0;
-
-  if (rosterFull && peerConnected) return "playing";
-  return "waiting";
+  // "playing" once every roster player is connected; otherwise still waiting.
+  // For the host `players` is the roster it was started with; for the client it
+  // is the roster the host reports in its state broadcasts.
+  if (connectedPlayers.length < players.length) return "waiting";
+  return "playing";
 }
 
 export function useGameRoom<S, M>(
@@ -116,7 +117,6 @@ export function useGameRoom<S, M>(
   // Refs that outlive renders without causing re-renders themselves.
   const roomRef = useRef<GameRoom<S, M> | null>(null);
   const unmountedRef = useRef(false);
-  const peersRef = useRef(0);
 
   // The cached snapshot used by useSyncExternalStore. We keep it in a ref so
   // the getSnapshot function always returns a referentially stable value when
@@ -130,11 +130,15 @@ export function useGameRoom<S, M>(
     for (const cb of listenersRef.current) cb();
   }, []);
 
+  // The host roster is required up front; fail loudly rather than silently
+  // inventing a one-player roster (which would mis-size presence derivation).
+  if (role === "host" && (players === undefined || players.length === 0)) {
+    throw new Error('useGameRoom: "players" roster is required when role === "host"');
+  }
+
   // Set up the room asynchronously on mount.
   useEffect(() => {
     let unsubRoom: (() => void) | null = null;
-    let unsubPeerJoin: (() => void) | null = null;
-    let unsubPeerLeave: (() => void) | null = null;
 
     async function setup(): Promise<void> {
       const transport = await factory.join(roomCode);
@@ -149,53 +153,23 @@ export function useGameRoom<S, M>(
       if (role === "host") {
         room = startHost(definition, transport, {
           seed,
-          players: players ?? ["host"],
-        });
-        // Track peers joining/leaving for the host.
-        unsubPeerJoin = transport.onPeerJoin(() => {
-          peersRef.current += 1;
-          if (!unmountedRef.current) {
-            // Refresh snapshot and notify.
-            snapshotRef.current = snapshotFrom(room, peersRef.current);
-            notify();
-          }
-        });
-        unsubPeerLeave = transport.onPeerLeave(() => {
-          peersRef.current = Math.max(0, peersRef.current - 1);
-          if (!unmountedRef.current) {
-            snapshotRef.current = snapshotFrom(room, peersRef.current);
-            notify();
-          }
+          players: players as string[],
         });
       } else {
         room = joinClient(definition, transport);
-        // For clients, treat the host as one peer.
-        unsubPeerJoin = transport.onPeerJoin(() => {
-          peersRef.current += 1;
-          if (!unmountedRef.current) {
-            snapshotRef.current = snapshotFrom(room, peersRef.current);
-            notify();
-          }
-        });
-        unsubPeerLeave = transport.onPeerLeave(() => {
-          peersRef.current = Math.max(0, peersRef.current - 1);
-          if (!unmountedRef.current) {
-            snapshotRef.current = snapshotFrom(room, peersRef.current);
-            notify();
-          }
-        });
       }
 
       roomRef.current = room;
 
       // Set an initial snapshot now that the room exists.
-      const initial = snapshotFrom(room, peersRef.current);
-      snapshotRef.current = initial;
+      snapshotRef.current = snapshotFrom(room);
 
-      // Subscribe to room state changes.
+      // Subscribe to room state changes. Presence (connection.peers, status) is
+      // derived from the room's authoritative connectedPlayers — the session
+      // owns the discovery handshake, so the hook keeps no parallel counter.
       unsubRoom = room.subscribe(() => {
         if (unmountedRef.current) return;
-        const next = snapshotFrom(room, peersRef.current);
+        const next = snapshotFrom(room);
         // Only update the ref and notify if something actually changed.
         if (!snapshotsEqual(snapshotRef.current!, next)) {
           snapshotRef.current = next;
@@ -211,8 +185,6 @@ export function useGameRoom<S, M>(
 
     return () => {
       unmountedRef.current = true;
-      unsubPeerJoin?.();
-      unsubPeerLeave?.();
       unsubRoom?.();
       roomRef.current?.leave();
       roomRef.current = null;
@@ -266,6 +238,7 @@ export function useGameRoom<S, M>(
     currentPlayer: snapshot.currentPlayer,
     makeMove,
     result: snapshot.result,
-    connection: { peers: snapshot.peers },
+    // Peers = everyone connected besides ourselves, per the authoritative set.
+    connection: { peers: Math.max(0, snapshot.connectedPlayers.length - 1) },
   };
 }

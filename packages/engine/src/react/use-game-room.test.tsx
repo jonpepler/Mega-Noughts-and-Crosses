@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { useState } from "react";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, test } from "vitest";
 import type { GameDefinition, GameResult } from "../game";
@@ -112,6 +113,107 @@ describe("useGameRoom hook", () => {
 
     expect(hostResult.current.status).toBe("ended");
     expect(joinResult.current.status).toBe("ended");
+  });
+
+  test("host starts waiting, transitions to playing once the client connects", async () => {
+    const factory = makeMemoryFactory();
+    const roomCode = "test-room-" + Math.random().toString(36).slice(2);
+
+    const { result: hostResult } = renderHook(() =>
+      useGameRoom({
+        definition: tinyGame,
+        factory,
+        roomCode,
+        role: "host",
+        players: ["p0", "p1"],
+        seed: 7,
+      }),
+    );
+
+    // The host is alone: connectedPlayers === [p0], so status is "waiting"
+    // and there are no other peers.
+    await waitFor(() => {
+      expect(hostResult.current.status).toBe("waiting");
+    });
+    expect(hostResult.current.connection.peers).toBe(0);
+
+    // The client joins; the host's authoritative set fills the roster.
+    const { result: joinResult } = renderHook(() =>
+      useGameRoom({
+        definition: tinyGame,
+        factory,
+        roomCode,
+        role: "join",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(hostResult.current.status).toBe("playing");
+    });
+    expect(hostResult.current.connection.peers).toBe(1);
+
+    // The client also reaches "playing" once it has the host's roster + presence.
+    await waitFor(() => {
+      expect(joinResult.current.status).toBe("playing");
+    });
+  });
+
+  test("missing host roster throws a clear error", () => {
+    const factory = makeMemoryFactory();
+    expect(() =>
+      renderHook(() =>
+        useGameRoom({
+          definition: tinyGame,
+          factory,
+          roomCode: "test-room-no-roster",
+          role: "host",
+        }),
+      ),
+    ).toThrow(/players.*roster.*required/i);
+  });
+
+  test("snapshot identity is stable across re-renders with no room change", async () => {
+    const factory = makeMemoryFactory();
+    const roomCode = "test-room-" + Math.random().toString(36).slice(2);
+
+    let bump: (() => void) | null = null;
+    const seen: unknown[] = [];
+
+    const { result } = renderHook(() => {
+      const [, setN] = useState(0);
+      bump = () => setN((n) => n + 1);
+      const room = useGameRoom({
+        definition: tinyGame,
+        factory,
+        roomCode,
+        role: "host",
+        players: ["p0", "p1"],
+        seed: 1,
+      });
+      seen.push(room.state);
+      return room;
+    });
+
+    // Let the room settle (state becomes non-null once the host is set up).
+    await waitFor(() => {
+      expect(result.current.status).not.toBe("connecting");
+    });
+
+    const before = result.current.state;
+    // Force several parent re-renders that do NOT change room state.
+    act(() => {
+      bump?.();
+    });
+    act(() => {
+      bump?.();
+    });
+    act(() => {
+      bump?.();
+    });
+
+    // The state object identity must be unchanged: getSnapshot returns the
+    // cached ref, so room state did not spuriously re-create.
+    expect(result.current.state).toBe(before);
   });
 
   test("makeMove before room exists is a safe no-op", async () => {

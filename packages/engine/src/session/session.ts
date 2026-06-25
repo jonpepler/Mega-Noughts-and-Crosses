@@ -13,6 +13,12 @@ export interface GameRoom<State, Move> {
   result: GameResult<string>;
   /** The roster as known to this peer. */
   players: string[];
+  /**
+   * The roles currently connected to the session, in roster order, as tracked
+   * authoritatively by the host. Always includes the host's own role; grows as
+   * peers are assigned roles and shrinks when peers leave.
+   */
+  connectedPlayers: string[];
   /** The local player's PlayerId, or null if a spectator / not yet assigned. */
   myRole: string | null;
   /** Whose turn it is per the known state, or null when unknown. */
@@ -53,6 +59,8 @@ export interface StatePayload<State> {
   state: State;
   result: GameResult<string>;
   players: string[];
+  /** The host's authoritative set of currently-connected roles, roster order. */
+  connectedPlayers: string[];
   currentPlayer: string | null;
 }
 

@@ -34,6 +34,19 @@ export function startHost<S, M>(
     for (const cb of subscribers) cb();
   }
 
+  /**
+   * The host's authoritative set of currently-connected roles, in roster order.
+   * The host (players[0]) is always present; assigned peers are added on hello
+   * and removed on leave. This is the source of truth for presence — the hook
+   * derives its connection count and status from it rather than counting peer
+   * events itself.
+   */
+  function connectedPlayers(): string[] {
+    const connected = new Set<string>(roleByPeer.values());
+    if (myRole !== null) connected.add(myRole);
+    return players.filter((role) => connected.has(role));
+  }
+
   /** Project canonical state for a given role (identity when no view). */
   function projectFor(role: string): S {
     return def.view ? def.view(canonical, role) : canonical;
@@ -48,6 +61,7 @@ export function startHost<S, M>(
       state: projectFor(role),
       result: currentResult(),
       players,
+      connectedPlayers: connectedPlayers(),
       currentPlayer: def.currentPlayer(canonical) as string,
     };
   }
@@ -85,6 +99,10 @@ export function startHost<S, M>(
     roleByPeer.set(peerId, role);
     transport.send(MSG.assignRole, { playerId: role }, peerId);
     transport.send(MSG.state, statePayloadFor(role), peerId);
+    // A newly-connected role changes the authoritative presence set: refresh
+    // every peer's view (so their connectedPlayers update) and our own.
+    broadcastState();
+    notify();
   }
 
   const unsubMessage = transport.onMessage((msg: TransportMessage) => {
@@ -110,7 +128,11 @@ export function startHost<S, M>(
   });
 
   const unsubLeave = transport.onPeerLeave((peerId: PeerId) => {
-    roleByPeer.delete(peerId);
+    if (!roleByPeer.delete(peerId)) return; // a spectator (no role) left
+    // A connected role dropped: refresh remaining peers and our own subscribers
+    // so presence-derived views (e.g. status) update without a manual counter.
+    broadcastState();
+    notify();
   });
 
   const room: GameRoom<S, M> = {
@@ -121,6 +143,9 @@ export function startHost<S, M>(
       return currentResult();
     },
     players,
+    get connectedPlayers(): string[] {
+      return connectedPlayers();
+    },
     myRole,
     get currentPlayer(): string | null {
       return def.currentPlayer(canonical) as string;
