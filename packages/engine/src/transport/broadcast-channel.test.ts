@@ -1,5 +1,8 @@
 // @vitest-environment node
-import { makeBroadcastChannelFactory } from "./broadcast-channel";
+import {
+  BroadcastChannelTransport,
+  makeBroadcastChannelFactory,
+} from "./broadcast-channel";
 
 /**
  * BroadcastChannel works between two instances in the same Node process (Node 18+),
@@ -57,6 +60,39 @@ test("two peers in a room see each other and exchange messages (BroadcastChannel
   b.leave();
 });
 
+test("crossing announcements emit onPeerJoin exactly once per peer (BroadcastChannel)", async () => {
+  const room = `bc-cross-${crypto.randomUUID()}`;
+
+  // Construct both transports and attach listeners BEFORE announcing, then
+  // announce both back-to-back so the two `presence` messages are posted
+  // before either is received: the announcements deterministically cross.
+  // Under the crossing handshake each side both receives the other's
+  // `presence` (emit) and the other's `presence-reply` (would emit again),
+  // so without dedup onPeerJoin would fire twice per peer.
+  const a = new BroadcastChannelTransport(room);
+  const b = new BroadcastChannelTransport(room);
+
+  const joinedByA: string[] = [];
+  a.onPeerJoin((id) => joinedByA.push(id));
+  const joinedByB: string[] = [];
+  b.onPeerJoin((id) => joinedByB.push(id));
+
+  a.announce();
+  b.announce();
+
+  // Wait for the full handshake (presence + presence-reply) to settle, then
+  // give any duplicate/reply messages time to arrive and be (wrongly) counted.
+  await waitFor(() => joinedByA.includes(b.selfId));
+  await waitFor(() => joinedByB.includes(a.selfId));
+  await new Promise((r) => setTimeout(r, 40));
+
+  expect(joinedByA.filter((id) => id === b.selfId)).toHaveLength(1);
+  expect(joinedByB.filter((id) => id === a.selfId)).toHaveLength(1);
+
+  a.leave();
+  b.leave();
+});
+
 test("peer leave notifies remaining peers (BroadcastChannel)", async () => {
   const f = makeBroadcastChannelFactory();
   const room = `bc-leave-${crypto.randomUUID()}`;
@@ -67,8 +103,7 @@ test("peer leave notifies remaining peers (BroadcastChannel)", async () => {
   const leftA: string[] = [];
   a.onPeerLeave((id) => leftA.push(id));
 
-  // Wait for handshake.
-  await waitFor(() => leftA.length >= 0); // just let things settle
+  // Let the presence handshake settle before the leave.
   await new Promise((r) => setTimeout(r, 20));
 
   b.leave();

@@ -53,6 +53,7 @@ class MemoryTransport implements Transport {
   send(type: string, payload: unknown, to?: PeerId): void {
     const msg: TransportMessage = { type, payload, from: this.selfId };
     if (to !== undefined) {
+      if (to === this.selfId) return; // never deliver a unicast to self
       this.hub.members.get(to)?.deliverMessage(msg);
     } else {
       for (const [id, peer] of this.hub.members) {
@@ -100,13 +101,29 @@ export function makeMemoryFactory(): TransportFactory {
       const id: PeerId = crypto.randomUUID();
       const transport = new MemoryTransport(id, hub);
 
-      // Notify existing members of the new peer, and notify newcomer of each existing peer.
-      for (const [existingId, existingTransport] of hub.members) {
+      // Snapshot the peers present at join time before adding the newcomer.
+      const existingIds = [...hub.members.keys()];
+
+      // Existing members can be notified synchronously: their listeners were
+      // attached long before this join, so the emission lands on a live set.
+      for (const existingTransport of hub.members.values()) {
         existingTransport.notifyJoin(id);
-        transport.notifyJoin(existingId);
       }
 
       hub.members.set(id, transport);
+
+      // The newcomer's own onPeerJoin listener is attached by the caller only
+      // AFTER `await join(...)` resolves. A microtask deferral would still run
+      // before that continuation (it is queued first), so we defer to a
+      // macrotask to guarantee these emissions land after the caller's
+      // synchronous post-await code (including listener attachment) has run.
+      if (existingIds.length > 0) {
+        setTimeout(() => {
+          for (const existingId of existingIds) {
+            transport.notifyJoin(existingId);
+          }
+        }, 0);
+      }
 
       return transport;
     },
