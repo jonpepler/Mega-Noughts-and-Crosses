@@ -71,7 +71,7 @@ export function lineWinner(cells: (Mark | null)[]): Mark | null {
 export function mnacSetup(): MnacState {
   return {
     boards: Array.from({ length: 9 }, () => Array<Mark | null>(9).fill(null)),
-    subResults: Array<SubResult>(9).fill({ status: "ongoing" }),
+    subResults: Array.from({ length: 9 }, () => ({ status: "ongoing" as const })),
     turn: "X",
     forcedBoard: null,
     result: { status: "ongoing" },

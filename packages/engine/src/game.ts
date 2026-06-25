@@ -10,7 +10,7 @@ export type GameResult<P> =
 
 export interface GameDefinition<State, Move, PlayerId = string> {
   setup(players: PlayerId[], rng: Rng): State;
-  currentPlayer(state: State): PlayerId;
+  currentPlayer(state: State): PlayerId | null;
   validateMove(state: State, move: Move, by: PlayerId): MoveValidation;
   applyMove(state: State, move: Move, by: PlayerId, rng: Rng): State;
   getResult(state: State): GameResult<PlayerId>;
