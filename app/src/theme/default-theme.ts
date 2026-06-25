@@ -18,7 +18,7 @@ import type { ThemeTokens } from "./tokens";
  * Space:
  * - cell: min(10vw, 10vh) makes cells adapt to both landscape and portrait;
  *   clamp ensures a usable minimum on very small screens
- * - gap: 4% of cell size (relative to keep proportions consistent)
+ * - gap: 0.25rem fixed spacing between cells and sub-boards
  * - radius: small rounding that feels friendly without being cartoonish
  *
  * Font: system stack only - CSP forbids external font loading.
@@ -36,7 +36,7 @@ export const defaultTheme: ThemeTokens = {
   },
   space: {
     cell: "clamp(2.5rem, min(10vw, 10vh), 8rem)",
-    gap: "0.25rem",
+    gap: "0.25rem", // fixed spacing value (not relative to cell size)
     radius: "0.375rem",
   },
   font: {
