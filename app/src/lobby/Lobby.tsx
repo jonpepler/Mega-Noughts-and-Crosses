@@ -64,7 +64,8 @@ export function Lobby({ onCreate, onJoin }: LobbyProps): React.JSX.Element {
     borderRadius: "var(--space-radius)",
     backgroundColor: "var(--color-surface)",
     color: "var(--color-text)",
-    width: "100%",
+    flex: "1",
+    minWidth: 0,
     boxSizing: "border-box",
   };
 

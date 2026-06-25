@@ -150,46 +150,74 @@ function GameView({
     boxSizing: "border-box",
   };
 
+  // Status bar matches the board width so the two form one centered column.
   const statusBarStyle: React.CSSProperties = {
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    gap: "calc(var(--space-gap) * 0.5)",
-    padding: "0.5em 1em",
+    gap: "0.35em",
+    padding: "0.7em 1em",
     borderRadius: "var(--space-radius)",
     backgroundColor: "var(--color-surface)",
-    fontSize: "0.9rem",
     color: "var(--color-muted)",
-    width: "100%",
-    maxWidth: "480px",
+    width: "min(92vmin, 560px)",
+    maxWidth: "100%",
     boxSizing: "border-box",
+  };
+
+  // The current status (turn / waiting / result) is the primary, prominent line.
+  const primaryStatusStyle: React.CSSProperties = {
+    fontSize: "1.15rem",
+    fontWeight: 600,
+    color: "var(--color-text)",
+    textAlign: "center",
   };
 
   const shareLinkStyle: React.CSSProperties = {
     display: "flex",
+    flexDirection: "column",
     alignItems: "center",
     gap: "0.5em",
     fontSize: "0.8rem",
     color: "var(--color-muted)",
-    flexWrap: "wrap",
-    justifyContent: "center",
+    width: "100%",
+  };
+
+  const shareCodeStyle: React.CSSProperties = {
+    fontFamily: "var(--font-family)",
+    fontSize: "0.85rem",
+    color: "var(--color-text)",
+    backgroundColor: "var(--color-bg)",
+    border: "1px solid var(--color-line)",
+    borderRadius: "var(--space-radius)",
+    padding: "0.35em 0.6em",
+    maxWidth: "100%",
+    overflowX: "auto",
+    whiteSpace: "nowrap",
   };
 
   const copyButtonStyle: React.CSSProperties = {
-    padding: "0.2em 0.6em",
-    fontSize: "0.75rem",
+    width: "100%",
+    padding: "0.55em 0.9em",
+    fontSize: "0.9rem",
+    fontWeight: 600,
     fontFamily: "var(--font-family)",
-    border: "1px solid var(--color-line)",
+    border: "none",
     borderRadius: "var(--space-radius)",
-    backgroundColor: "var(--color-surface)",
-    color: "var(--color-text)",
+    backgroundColor: "var(--color-accent)",
+    color: "var(--color-bg)",
     cursor: "pointer",
   };
 
-  const turnStyle: React.CSSProperties = {
-    fontSize: "0.9rem",
-    color: "var(--color-text)",
+  // "You are playing as X" is a small caption below the primary line.
+  const captionStyle: React.CSSProperties = {
+    fontSize: "0.8rem",
+    color: "var(--color-muted)",
   };
+
+  // Colour a player's mark glyph with its theme token (X coral, O blue).
+  const markColor = (mark: string): string =>
+    mark === "X" ? "var(--color-x)" : "var(--color-o)";
 
   // ---------- status text ----------
 
@@ -219,21 +247,22 @@ function GameView({
   return (
     <div style={containerStyle}>
       <div style={statusBarStyle} role="status" aria-live="polite">
-        <span>{statusText}</span>
+        <span style={primaryStatusStyle}>{statusText}</span>
 
         {status === "waiting" && (
           <span style={shareLinkStyle}>
-            Share link:{" "}
-            <code style={{ wordBreak: "break-all" }}>{shareUrl}</code>
+            <span>Share this link to invite your opponent</span>
+            <code style={shareCodeStyle}>{shareUrl}</code>
             <button style={copyButtonStyle} onClick={() => void copyLink()}>
-              Copy
+              Copy link
             </button>
           </span>
         )}
 
         {status === "playing" && myRole !== null && (
-          <span style={turnStyle}>
-            You are playing as <strong>{myRole}</strong>
+          <span style={captionStyle}>
+            You are{" "}
+            <strong style={{ color: markColor(myRole) }}>{myRole}</strong>
           </span>
         )}
       </div>
