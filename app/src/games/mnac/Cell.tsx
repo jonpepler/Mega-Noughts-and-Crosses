@@ -18,11 +18,13 @@ export function Cell({
 }: CellProps): React.JSX.Element {
   const label = `board ${boardIndex} cell ${cellIndex}${mark ? ` (${mark})` : ""}`;
 
+  // Cells fill their 1fr grid track in the sub-board and maintain a square
+  // shape via aspect-ratio. Font size scales with the container (cqmin).
+  // No fixed pixel min-size: on a 360px screen each cell is ~36px which is
+  // acceptable for a board game where the board must fit without scrolling.
   const style: React.CSSProperties = {
-    width: "var(--space-cell)",
-    height: "var(--space-cell)",
-    minWidth: "44px",
-    minHeight: "44px",
+    width: "100%",
+    aspectRatio: "1",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -31,7 +33,9 @@ export function Cell({
     borderRadius: "var(--space-radius)",
     cursor: disabled ? "not-allowed" : "pointer",
     color: mark === "X" ? "var(--color-x)" : mark === "O" ? "var(--color-o)" : "var(--color-text)",
-    fontSize: "calc(var(--space-cell) * 0.5)",
+    // 30cqmin ≈ 30% of the sub-board's smaller container dimension, which
+    // reliably renders the X/O marks at ~50% of cell size across all viewports.
+    fontSize: "30cqmin",
     fontFamily: "var(--font-family)",
     fontWeight: "bold",
     opacity: disabled && !mark ? 0.5 : 1,

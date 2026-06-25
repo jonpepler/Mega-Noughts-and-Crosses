@@ -136,16 +136,17 @@ function GameView({
 
   // ---------- styles ----------
 
+  // GameView fills the flex column from ThemeProvider and centers its content.
+  // The board is sized with vmin (see Board.tsx) so it always fits in the
+  // viewport without overflow; this wrapper just needs to center it.
   const containerStyle: React.CSSProperties = {
+    flex: "1",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    gap: "var(--space-gap)",
-    padding: "calc(var(--space-gap) * 2)",
-    fontFamily: "var(--font-family)",
-    color: "var(--color-text)",
-    backgroundColor: "var(--color-bg)",
-    minHeight: "100%",
+    justifyContent: "center",
+    gap: "0.75rem",
+    padding: "1rem",
     boxSizing: "border-box",
   };
 

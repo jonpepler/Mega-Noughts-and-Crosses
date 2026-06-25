@@ -17,7 +17,8 @@ export function ThemeProvider({
 }: ThemeProviderProps): React.JSX.Element {
   const tokens = theme.get();
 
-  const style: React.CSSProperties & Record<string, string> = {
+  // CSS custom properties (theme tokens) — must be Record<string,string> for TS.
+  const cssVars: Record<string, string> = {
     "--color-bg": tokens.color.bg,
     "--color-surface": tokens.color.surface,
     "--color-line": tokens.color.line,
@@ -32,5 +33,20 @@ export function ThemeProvider({
     "--font-family": tokens.font.family,
   };
 
-  return <div style={style}>{children}</div>;
+  // The wrapper fills the full viewport so the themed background covers the
+  // whole screen even when content is short (e.g. the lobby).
+  // #root in index.html is already min-height:100dvh with flex-direction:column,
+  // so flex:1 here makes this wrapper grow to fill it.
+  const layoutStyle: React.CSSProperties = {
+    flex: "1",
+    display: "flex",
+    flexDirection: "column",
+    background: "var(--color-bg)",
+    color: "var(--color-text)",
+    fontFamily: "var(--font-family)",
+  };
+
+  const wrapperStyle = Object.assign({}, cssVars, layoutStyle);
+
+  return <div style={wrapperStyle}>{children}</div>;
 }

@@ -15,21 +15,23 @@ export function Board({
   currentPlayer,
   onMove,
 }: BoardProps): React.JSX.Element {
-  // The board container uses vmin so it fits in viewport on mobile and desktop.
-  // We avoid a fixed pixel width so it won't overflow on 360px screens.
-  // Each sub-board is roughly (3 * cell + 2 * gap + 2 * padding) wide;
-  // the board grid is (3 * subboard + 2 * gap) wide.
-  // With --space-cell clamp(2.5rem, min(10vw,10vh), 8rem) this stays responsive.
+  // The board is a square sized to the smaller of the available screen
+  // dimensions (vmin) so it always fits without scrolling on any device.
+  // - 92vmin with a 560px cap keeps it large on desktop and safe on phones.
+  // - aspect-ratio:1 ensures the height matches the width exactly.
+  // - Inner sub-boards use 1fr columns so everything scales proportionally.
+  const boardSize = "min(92vmin, 560px)";
 
   const boardStyle: React.CSSProperties = {
-    display: "inline-grid",
-    gridTemplateColumns: "repeat(3, auto)",
-    gridTemplateRows: "repeat(3, auto)",
+    width: boardSize,
+    height: boardSize,
+    display: "grid",
+    gridTemplateColumns: "repeat(3, 1fr)",
+    gridTemplateRows: "repeat(3, 1fr)",
     gap: "calc(var(--space-gap) * 3)",
     padding: "calc(var(--space-gap) * 2)",
     backgroundColor: "var(--color-bg)",
     borderRadius: "var(--space-radius)",
-    maxWidth: "100%",
     boxSizing: "border-box",
   };
 

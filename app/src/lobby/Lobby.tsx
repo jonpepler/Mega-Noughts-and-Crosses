@@ -8,17 +8,17 @@ export interface LobbyProps {
 export function Lobby({ onCreate, onJoin }: LobbyProps): React.JSX.Element {
   const [code, setCode] = useState("");
 
+  // flex:1 makes this container grow to fill the ThemeProvider's flex column,
+  // ensuring the lobby is vertically centered in the full viewport.
   const containerStyle: React.CSSProperties = {
+    flex: "1",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
     gap: "var(--space-gap)",
-    padding: "calc(var(--space-gap) * 4)",
-    fontFamily: "var(--font-family)",
-    color: "var(--color-text)",
-    backgroundColor: "var(--color-bg)",
-    minHeight: "100%",
+    padding: "2rem 1rem",
+    boxSizing: "border-box",
   };
 
   const headingStyle: React.CSSProperties = {

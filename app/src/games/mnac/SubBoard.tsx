@@ -24,10 +24,14 @@ export function SubBoard({
 }: SubBoardProps): React.JSX.Element {
   const cells = state.boards[boardIndex];
 
-  const containerStyle: React.CSSProperties = {
+  // The sub-board fills its 1fr cell from the Board grid, then further
+  // divides into a 3x3 grid of cells using 1fr columns — no fixed pixel sizes.
+  // containerType:"size" enables container queries so the overlay text can
+  // scale with the sub-board's rendered size.
+  const containerStyle: React.CSSProperties & Record<string, string> = {
     display: "grid",
-    gridTemplateColumns: "repeat(3, var(--space-cell))",
-    gridTemplateRows: "repeat(3, var(--space-cell))",
+    gridTemplateColumns: "repeat(3, 1fr)",
+    gridTemplateRows: "repeat(3, 1fr)",
     gap: "var(--space-gap)",
     position: "relative",
     padding: "var(--space-gap)",
@@ -36,6 +40,7 @@ export function SubBoard({
     outline: isForced ? "2px solid var(--color-accent)" : "2px solid var(--color-line)",
     outlineOffset: "1px",
     boxSizing: "border-box",
+    containerType: "size",
   };
 
   // Won or drawn sub-board overlay
@@ -48,7 +53,7 @@ export function SubBoard({
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: "calc(var(--space-cell) * 1.8)",
+    fontSize: "50cqmin",
     fontWeight: "bold",
     fontFamily: "var(--font-family)",
     color: winner === "X" ? "var(--color-x)" : winner === "O" ? "var(--color-o)" : "var(--color-muted)",
