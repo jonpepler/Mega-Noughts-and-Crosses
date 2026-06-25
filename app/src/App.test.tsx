@@ -57,7 +57,7 @@ describe("App", () => {
     );
   });
 
-  test("with ?room=test&local as host, a waiting status indicator is shown", async () => {
+  test("with ?room=test2&local as host, a waiting status indicator is shown", async () => {
     localStorage.setItem(
       "mnac:room",
       JSON.stringify({ roomCode: "test2", role: "host", seed: 7 }),
@@ -71,6 +71,29 @@ describe("App", () => {
         // Look for any status text: "connecting", "waiting", "playing" etc.
         const statusEl = screen.getByRole("status");
         expect(statusEl).toBeInTheDocument();
+      },
+      { timeout: 3000 },
+    );
+  });
+
+  test("share link in the waiting state does not contain ?local", async () => {
+    localStorage.setItem(
+      "mnac:room",
+      JSON.stringify({ roomCode: "test", role: "host", seed: 42 }),
+    );
+    // Load with ?local set — the share link must still be clean
+    setSearch("/?room=test&local");
+    render(<App />);
+
+    await waitFor(
+      () => {
+        const statusEl = screen.getByRole("status");
+        // When waiting, the share link code element is rendered inside the status bar
+        const code = statusEl.querySelector("code");
+        if (code) {
+          expect(code.textContent).toContain("?room=test");
+          expect(code.textContent).not.toContain("local");
+        }
       },
       { timeout: 3000 },
     );

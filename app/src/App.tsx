@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useGameRoom, makeLocalStoragePersistence } from "@mnac/engine";
 import { ThemeProvider } from "./theme/ThemeProvider";
 import { Lobby } from "./lobby/Lobby";
@@ -97,7 +97,7 @@ function GameView({
   seed,
   search,
 }: GameViewProps): React.JSX.Element {
-  const factory = selectTransportFactory(search);
+  const factory = useMemo(() => selectTransportFactory(search), [search]);
 
   const { state, status, myRole, currentPlayer, makeMove, result } =
     useGameRoom<MnacState, MnacMove>({
@@ -109,15 +109,16 @@ function GameView({
       seed,
     });
 
-  // Shareable link — strip ?local to keep the share URL clean for remote play,
-  // but preserve it if present (useful in dev/test with ?local).
+  // Shareable link — always omit ?local so remote peers use the default
+  // (Nostr) transport. ?local keeps working for the local dev/test flow when
+  // a user sets it manually in their own URL; only the outgoing share link
+  // must be clean.
   const shareUrl = (() => {
     const base =
       typeof window !== "undefined"
         ? `${window.location.origin}${window.location.pathname}`
         : "";
-    const hasLocal = new URLSearchParams(search).has("local");
-    return base + buildSearch(roomCode, hasLocal);
+    return base + buildSearch(roomCode, false);
   })();
 
   async function copyLink() {
@@ -277,7 +278,9 @@ export default function App(): React.JSX.Element {
     setGameRoom({ roomCode: code, role: "host", seed });
   }
 
-  function handleJoin(code: string) {
+  function handleJoin(rawCode: string) {
+    const code = rawCode.trim();
+    if (!code) return;
     const seed = seedFromCode(code);
     // Persist as join (so reload doesn't flip us to host)
     persistence.saveRoom({ roomCode: code, role: "join", seed });
