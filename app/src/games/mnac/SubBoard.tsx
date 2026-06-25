@@ -70,12 +70,13 @@ export function SubBoard({
         const move: MnacMove = { board: boardIndex, cell: cellIndex };
 
         // A cell is enabled only when myMark is not null, it's our turn,
-        // and mnacValidate says the move is ok
-        let isDisabled = true;
-        if (myMark !== null && currentPlayer === myMark && !isDecided) {
-          const validation = mnacValidate(state, move, myMark);
-          isDisabled = !validation.ok;
-        }
+        // and mnacValidate says the move is ok. Legality (including decided
+        // sub-boards) is determined solely by mnacValidate.
+        const validation =
+          myMark !== null && currentPlayer === myMark
+            ? mnacValidate(state, move, myMark)
+            : { ok: false as const };
+        const isDisabled = !validation.ok;
 
         return (
           <Cell

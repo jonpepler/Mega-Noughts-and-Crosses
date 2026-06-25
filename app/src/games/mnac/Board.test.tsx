@@ -117,8 +117,13 @@ describe("Board", () => {
     }
     // The winning mark "X" should appear in the won sub-board region
     // (rendered as an overlay) - check data attribute
+    // Exactly one sub-board should be won, and it must be sub-board 4
     const wonBoards = document.querySelectorAll('[data-won="true"]');
-    expect(wonBoards.length).toBeGreaterThan(0);
+    expect(wonBoards.length).toBe(1);
+    expect(wonBoards[0]).toHaveAttribute(
+      "aria-label",
+      expect.stringContaining("sub-board 4"),
+    );
   });
 
   test("forced sub-board carries data-forced attribute", () => {

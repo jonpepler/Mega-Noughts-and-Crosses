@@ -41,10 +41,7 @@ export function Board({
     >
       {state.boards.map((_cells, boardIdx) => {
         const boardIndex = boardIdx as CellIndex;
-        const isForced =
-          state.forcedBoard !== null
-            ? state.forcedBoard === boardIndex
-            : false;
+        const isForced = state.forcedBoard === boardIndex;
 
         return (
           <SubBoard
