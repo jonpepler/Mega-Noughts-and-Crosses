@@ -62,7 +62,7 @@ export function startHost<S, M>(
       result: currentResult(),
       players,
       connectedPlayers: connectedPlayers(),
-      currentPlayer: def.currentPlayer(canonical) as string,
+      currentPlayer: def.currentPlayer(canonical),
     };
   }
 
@@ -75,7 +75,7 @@ export function startHost<S, M>(
 
   /** Try to apply a move by `by`; returns the rejection reason or null on success. */
   function tryApply(move: M, by: string): string | null {
-    if ((def.currentPlayer(canonical) as string) !== by) {
+    if (def.currentPlayer(canonical) !== by) {
       return "not your turn";
     }
     const validation = def.validateMove(canonical, move, by);
@@ -148,7 +148,7 @@ export function startHost<S, M>(
     },
     myRole,
     get currentPlayer(): string | null {
-      return def.currentPlayer(canonical) as string;
+      return def.currentPlayer(canonical);
     },
     makeMove(move: M): void {
       if (myRole === null) return;
