@@ -99,16 +99,49 @@ const DEFAULT_RELAY_URLS = [
 
 const DEFAULT_RELAY_REDUNDANCY = 4;
 
+// openrelay.metered.ca is a free, best-effort public TURN server.
+// Replace with a dedicated TURN server for production reliability.
+const DEFAULT_RTC_CONFIG: RTCConfiguration = {
+  iceServers: [
+    {
+      urls: [
+        "stun:stun.l.google.com:19302",
+        "stun:stun1.l.google.com:19302",
+      ],
+    },
+    {
+      urls: "turn:openrelay.metered.ca:80",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
+    {
+      urls: "turn:openrelay.metered.ca:443",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
+    {
+      urls: "turn:openrelay.metered.ca:443?transport=tcp",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
+  ],
+};
+
 export function makeNostrFactory(opts: {
   appId: string;
   relayUrls?: string[];
   relayRedundancy?: number;
+  rtcConfig?: RTCConfiguration;
 }): TransportFactory {
   const relayUrls = opts.relayUrls ?? DEFAULT_RELAY_URLS;
   const relayRedundancy = opts.relayRedundancy ?? DEFAULT_RELAY_REDUNDANCY;
+  const rtcConfig = opts.rtcConfig ?? DEFAULT_RTC_CONFIG;
   return {
     async join(roomCode: string): Promise<Transport> {
-      const room = joinRoom({ appId: opts.appId, relayUrls, relayRedundancy }, roomCode);
+      const room = joinRoom(
+        { appId: opts.appId, relayUrls, relayRedundancy, rtcConfig },
+        roomCode,
+      );
       return new NostrTransport(room);
     },
   };

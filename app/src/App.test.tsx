@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom";
 import App from "./App";
@@ -217,5 +217,65 @@ describe("App", () => {
       },
       { timeout: 3000 },
     );
+  });
+
+  // -------------------------------------------------------------------------
+  // Connecting-timeout hint
+  // -------------------------------------------------------------------------
+
+  test("connecting hint is NOT shown immediately when joining", async () => {
+    // Joiner with no host — stays in 'connecting' indefinitely.
+    localStorage.setItem(
+      "mnac:room",
+      JSON.stringify({ roomCode: "stalledroom", role: "join", seed: 0 }),
+    );
+    setSearch("/?room=stalledroom&local");
+    render(<App />);
+
+    // Wait until the connecting status is rendered
+    await waitFor(
+      () => {
+        const statusEl = screen.getByRole("status");
+        expect(statusEl.textContent).toMatch(/connecting/i);
+      },
+      { timeout: 3000 },
+    );
+
+    // Hint must NOT be visible yet (< 10s elapsed)
+    expect(
+      screen.queryByText(/taking longer than usual/i),
+    ).not.toBeInTheDocument();
+  });
+
+  test("connecting hint appears after ~10 seconds in the connecting state", async () => {
+    vi.useFakeTimers();
+
+    localStorage.setItem(
+      "mnac:room",
+      JSON.stringify({ roomCode: "stalledroom2", role: "join", seed: 0 }),
+    );
+    setSearch("/?room=stalledroom2&local");
+    render(<App />);
+
+    // Wait until the connecting status is rendered (uses real timers inside waitFor)
+    // We need to let the event loop run so the component mounts and status resolves.
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    // Hint must NOT be visible before the timeout fires
+    expect(
+      screen.queryByText(/taking longer than usual/i),
+    ).not.toBeInTheDocument();
+
+    // Advance time past the 10-second threshold
+    await act(async () => {
+      vi.advanceTimersByTime(10_001);
+    });
+
+    // Hint should now be visible
+    expect(screen.getByText(/taking longer than usual/i)).toBeInTheDocument();
+
+    vi.useRealTimers();
   });
 });

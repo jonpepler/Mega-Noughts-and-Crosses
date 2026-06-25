@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useGameRoom, makeLocalStoragePersistence } from "@mnac/engine";
 import { ThemeProvider } from "./theme/ThemeProvider";
 import { useThemePreference } from "./theme/use-theme-preference";
@@ -119,6 +119,17 @@ function GameView({
       seed,
     });
 
+  // Show a hint when the connection has been in "connecting" state for too long.
+  const [stalled, setStalled] = useState(false);
+  useEffect(() => {
+    if (status !== "connecting") {
+      setStalled(false);
+      return;
+    }
+    const timer = setTimeout(() => setStalled(true), 10_000);
+    return () => clearTimeout(timer);
+  }, [status]);
+
   // Shareable link — always omit ?local so remote peers use the default
   // (Nostr) transport. ?local keeps working for the local dev/test flow when
   // a user sets it manually in their own URL; only the outgoing share link
@@ -220,6 +231,14 @@ function GameView({
     color: "var(--color-muted)",
   };
 
+  // Muted hint shown when connecting takes longer than expected.
+  const stalledHintStyle: React.CSSProperties = {
+    fontSize: "0.78rem",
+    color: "var(--color-muted)",
+    textAlign: "center",
+    lineHeight: 1.45,
+  };
+
   // Colour a player's mark glyph with its theme token (X coral, O blue).
   const markColor = (mark: string): string =>
     mark === "X" ? "var(--color-x)" : "var(--color-o)";
@@ -261,6 +280,13 @@ function GameView({
             <button style={copyButtonStyle} onClick={() => void copyLink()}>
               Copy link
             </button>
+          </span>
+        )}
+
+        {status === "connecting" && stalled && (
+          <span style={stalledHintStyle}>
+            This is taking longer than usual. Check the room code is correct
+            and that the other player has opened the link.
           </span>
         )}
 
