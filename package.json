@@ -9,6 +9,7 @@
     "test": "npm run test -w packages/engine && npm run test -w app",
     "typecheck": "tsc -b",
     "lint": "eslint .",
+    "format": "prettier --write .",
     "e2e": "playwright test"
   },
   "devDependencies": {
