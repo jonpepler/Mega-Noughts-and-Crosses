@@ -302,6 +302,43 @@ describe("DiceRace conformance – engine generality", () => {
     }
   });
 
+  test("rng reproducibility over transport: same seed produces same outcome end-to-end", async () => {
+    // Drives a full game over the memory transport with a fixed seed and captures
+    // the host's final scores. Then re-runs a local simulation with the same seed
+    // and confirms the scores match, proving the rng threaded through setup and
+    // applyMove on the host is deterministic end-to-end.
+    const SEED = 42;
+    const PLAYERS = ["alice", "bob"];
+
+    // --- Run over transport ---
+    const f = makeMemoryFactory();
+    const ht = await f.join("rng-room");
+    const ct = await f.join("rng-room");
+    const host = startHost(diceRaceGame, ht, { seed: SEED, players: PLAYERS });
+    const client = joinClient(diceRaceGame, ct);
+    await tick();
+
+    for (let step = 0; step < 100; step++) {
+      if (host.result.status !== "ongoing") break;
+      const cp = host.currentPlayer;
+      if (cp === "alice") {
+        host.makeMove("roll");
+      } else {
+        client.makeMove("roll");
+      }
+      await tick();
+    }
+
+    expect(host.result.status).toBe("scored");
+    const transportScores =
+      host.result.status === "scored" ? { ...host.result.scores } : {};
+
+    // --- Local simulation with same seed ---
+    const { finalScores: localScores } = simulateGame(SEED, PLAYERS);
+
+    expect(transportScores).toEqual(localScores);
+  });
+
   test("extra turn over transport: currentPlayer stays same on the client", async () => {
     // We need a seed where alice's first roll grants an extra turn (roll >= 4).
     // Scan seeds until we find one where alice's first roll is >= 4.
@@ -309,10 +346,9 @@ describe("DiceRace conformance – engine generality", () => {
     // To determine what the first roll will be under the engine:
     //  - setup() calls rng twice (one bonus per player); then applyMove calls rng once.
     //  - So the 3rd rng call (after 2 setup calls) is the first roll.
-    const { makeRng: mkRng } = await import("../rng");
     let targetSeed = -1;
     for (let seed = 0; seed < 200; seed++) {
-      const rng = mkRng(seed);
+      const rng = makeRng(seed);
       rng.int(3); // alice bonus
       rng.int(3); // bob bonus
       const firstRoll = rng.int(6) + 1;

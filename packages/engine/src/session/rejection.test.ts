@@ -206,4 +206,36 @@ describe("lastRejection – host", () => {
     await tick();
     expect(notified).toBe(true);
   });
+
+  test("host lastRejection is cleared when a valid remote client move advances the game", async () => {
+    // Regression: a stale host rejection should not linger after the opponent moves.
+    const f = makeMemoryFactory();
+    const ht = await f.join("r");
+    const ct = await f.join("r");
+    const host = startHost(testDef, ht, { seed: 1, players: ["p0", "p1"] });
+    const client = joinClient(testDef, ct);
+    await tick();
+
+    // p0's turn; host (p0) makes an invalid move → lastRejection is set.
+    host.makeMove({ cell: 99 }); // out of range
+    expect(host.lastRejection).not.toBeNull();
+    expect(host.lastRejection?.reason).toBe("out of range");
+
+    // Now host makes a valid move so it becomes p1's turn.
+    host.makeMove({ cell: 0 });
+    expect(host.lastRejection).toBeNull();
+
+    // Re-trigger a host rejection while it is p0's turn again (after client moves).
+    // First: client (p1) makes a valid move to pass turn back to p0.
+    // But first set a rejection on the host by trying an invalid move (out of turn).
+    host.makeMove({ cell: 3 }); // out of turn for host (it's p1's turn)
+    expect(host.lastRejection).not.toBeNull();
+
+    // Client (p1) makes a valid move, advancing the game.
+    client.makeMove({ cell: 2 });
+    await tick();
+
+    // The host's stale rejection must now be cleared.
+    expect(host.lastRejection).toBeNull();
+  });
 });

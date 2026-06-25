@@ -125,6 +125,7 @@ export function startHost<S, M>(
       transport.send(MSG.rejected, { reason, seq }, msg.from);
       return;
     }
+    lastRejection = null;
     broadcastState();
     notify();
   });
