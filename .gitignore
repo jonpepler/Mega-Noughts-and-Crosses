@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Test artifacts
+coverage/
+playwright-report/
+test-results/
+
+# Local environment
+.env
+.env.local
+*.local
+
+# Editor and OS
+.DS_Store
+
+# Superpowers working docs (specs and plans)
+docs/superpowers/
