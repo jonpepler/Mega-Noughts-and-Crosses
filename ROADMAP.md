@@ -27,6 +27,17 @@ committed work in flight, pick up the next item.
 - Smaller touches: a subtle inner shadow on empty cells, a little padding around
   the mark glyph at small sizes, and slightly higher contrast on secondary text.
 
+### Engine boundary tidy-ups (from the final review, cosmetic)
+
+- Default the persistence key to a neutral value (for example `game:room`) and let
+  the app pass `mnac:room`, so the engine carries no game branding.
+- Consolidate the duplicated `makeSet` listener helper shared by the memory,
+  broadcast-channel, and Nostr transports into one internal module.
+- After the game is over, prefer a "game is already over" rejection message over
+  "not your turn".
+- Drop the unused `def` parameter from `joinClient` until client side prediction
+  actually needs it.
+
 ### Verification still to finish
 
 - Run the adversarial game panel and record its triage in
