@@ -5,5 +5,9 @@ test("same seed gives same sequence", () => {
 });
 test("int is within range", () => {
   const r = makeRng(1);
-  for (let i = 0; i < 100; i++) expect(r.int(6)).toBeGreaterThanOrEqual(0), expect(r.int(6)).toBeLessThan(6);
+  for (let i = 0; i < 100; i++) {
+    const v = r.int(6);
+    expect(v).toBeGreaterThanOrEqual(0);
+    expect(v).toBeLessThan(6);
+  }
 });
