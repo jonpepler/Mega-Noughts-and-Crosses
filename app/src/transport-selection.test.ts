@@ -25,3 +25,18 @@ test("BroadcastChannel factory and Nostr factory are different objects for ?loca
   // They're different factories — a rough but honest check.
   expect(local).not.toBe(nostr);
 });
+
+test("returns a factory when ?fault is present with a spec", () => {
+  const factory = selectTransportFactory("?local&fault=dropFirst:2");
+  expect(typeof factory.join).toBe("function");
+});
+
+test("returns a factory for a bare ?fault (default profile)", () => {
+  const factory = selectTransportFactory("?local&fault");
+  expect(typeof factory.join).toBe("function");
+});
+
+test("returns a factory for ?local with no fault (unwrapped path)", () => {
+  const factory = selectTransportFactory("?local");
+  expect(typeof factory.join).toBe("function");
+});

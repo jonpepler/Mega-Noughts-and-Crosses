@@ -21,6 +21,8 @@ export {
   BroadcastChannelTransport,
 } from "./transport/broadcast-channel";
 export { makeNostrFactory, NostrTransport } from "./transport/nostr";
+export { makeFaultyFactory } from "./transport/faulty";
+export type { FaultOptions } from "./transport/faulty";
 
 // Repositories
 export type { PersistenceRepository } from "./repositories/persistence";
