@@ -37,32 +37,38 @@ committed work in flight, pick up the next item.
 - Deploy to GitHub Pages and confirm the live URL loads and plays. This needs
   the repository Pages source set to "GitHub Actions" in Settings, Pages.
 
-## Engine generality (deferred, with reasons)
+## Engine generality
 
-The engine is built to host more than one room code game. The `GameDefinition`
-already supports a list of players (not just two), a `currentPlayer` read from
-state (so turns need not strictly alternate), a `view(state, player)` projection
-for hidden information, a result type of ongoing, win, draw, or scored, and a
-seeded random generator passed to setup and applyMove.
+The adversarial game panel has run. Its full findings and the reasoning behind
+each decision are recorded in `docs/engine-generality.md`. In short, the engine
+is generic along the axes that matter (N players, turn order read from state,
+hidden information via a view projection, a seeded random generator, scored
+results, generic moves, and opaque state), and the panel confirmed this by
+attacking it with eleven games.
 
-The following capabilities are not needed for Mega Noughts and Crosses and are
-deferred. They are recorded so future work does not assume they exist or quietly
-contradict these decisions. The adversarial game panel will confirm and add to
-this list in `docs/engine-generality.md`.
+Two cheap, honesty preserving items were adopted now:
 
-- Simultaneous or real time moves (for example Rock Paper Scissors, parts of
-  Galaxy Trucker and Project L). The current model is turn based. Adding a
-  commit and reveal phase or a simultaneous move mode is a larger change to the
-  session protocol.
-- Host driven timers and timed phases (Galaxy Trucker). The session has no clock.
-- Non move game events such as resign, draw offer, and repetition claims (Chess).
-  Today only moves change state.
-- Inter player negotiation and trading side channels (Catan). Peers can only send
-  move intents to the host.
-- Subjective, human judged results and rotating judge roles (Cards Against
-  Humanity). Results are computed by the game definition, not voted on.
-- A shared deterministic random stream for ongoing draws and shuffles beyond the
-  initial seed (Catan dice, card draws). Today the seed is for setup and apply.
+- Surface the move rejection reason to the player (the host already sent it; the
+  client and hook now expose it).
+- Conformance fixtures proving a non noughts and crosses game shape round trips
+  through the runtime.
+
+The following were deferred with reasons (see `docs/engine-generality.md` for
+the detail). They are listed here so future work does not contradict them. Build
+each only when a concrete game needs it, designing against that real use.
+
+- Delegate "who may act now" from the runtime to the game, plus a non move
+  control channel for out of turn actions (resign, draw offer, trade response).
+- Simultaneous, commit and reveal moves (Rock Paper Scissors, Battleship
+  placement, the Galaxy Trucker build phase).
+- Host driven timers and tick events (chess clocks, build timers, turn timeouts).
+- Richer terminal metadata: a termination cause, an explicit winner on the
+  scored variant, and per category score breakdowns.
+- In session rematch and multi round reset, and mid game disconnect resolution.
+- A first class negotiation, trade, or chat side channel on the game room.
+- Confidentiality of hidden state against the host peer itself.
+- A solo or host driven automated opponent.
+- Spectators receiving projected state, and an open lobby with a variable roster.
 
 ## Possible future games
 
