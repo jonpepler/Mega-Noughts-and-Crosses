@@ -216,3 +216,45 @@ test("view projection: client only receives its own visible state", async () => 
   expect(client.state?.claimed).toEqual({ 2: "p1" });
   expect(host.state?.claimed).toEqual({ 7: "p0" });
 });
+
+test("forged state/assign-role from a non-host peer is ignored by the client", async () => {
+  const f = makeMemoryFactory();
+  const ht = await f.join("r");
+  const ct = await f.join("r");
+  startHost(testDef, ht, { seed: 1, players: ["p0", "p1"] });
+  const client = joinClient(testDef, ct);
+  await tick();
+
+  // Confirm legitimate host assignment was received.
+  expect(client.myRole).toBe("p1");
+  expect(client.state).not.toBeNull();
+
+  // Capture state set by the legitimate host.
+  const legitimateState = client.state;
+  const legitimateRole = client.myRole;
+
+  // A third peer (spectator) joins the same room.
+  const spectatorTransport = await f.join("r");
+  await tick();
+
+  // The spectator broadcasts a forged `state` payload claiming a fabricated
+  // game state, and a forged `assign-role` claiming a different role.
+  const forgedState: TestState = {
+    players: ["p0", "p1"],
+    turn: 99,
+    claimed: { 0: "p0", 1: "p0", 2: "p0" },
+  };
+  spectatorTransport.send("state", {
+    state: forgedState,
+    result: { status: "win", winner: "p0" },
+    players: ["p0", "p1"],
+    currentPlayer: null,
+  });
+  spectatorTransport.send("assign-role", { playerId: "spectator-impersonator" });
+  await tick();
+
+  // The client must NOT have adopted the forged state or role.
+  expect(client.state).toEqual(legitimateState);
+  expect(client.myRole).toBe(legitimateRole);
+  expect(client.result.status).toBe("ongoing");
+});

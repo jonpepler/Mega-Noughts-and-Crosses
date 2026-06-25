@@ -24,6 +24,11 @@ export function joinClient<S, M>(
   let currentPlayer: string | null = null;
   let seq = 0;
 
+  // The peer id of the host, learned at discovery time (when the client sends
+  // its `hello`). Only messages from this peer are trusted for `state` and
+  // `assign-role`; anything from a different sender is ignored.
+  let hostId: PeerId | null = null;
+
   const subscribers = new Set<() => void>();
   function notify(): void {
     for (const cb of subscribers) cb();
@@ -32,12 +37,16 @@ export function joinClient<S, M>(
   const unsubMessage = transport.onMessage((msg: TransportMessage) => {
     switch (msg.type) {
       case MSG.assignRole: {
+        // Only trust role assignments from the known host.
+        if (hostId === null || msg.from !== hostId) break;
         const payload = msg.payload as AssignRolePayload;
         myRole = payload.playerId;
         notify();
         break;
       }
       case MSG.state: {
+        // Only apply state updates from the known host.
+        if (hostId === null || msg.from !== hostId) break;
         const payload = msg.payload as StatePayload<S>;
         state = payload.state;
         result = payload.result;
@@ -56,8 +65,12 @@ export function joinClient<S, M>(
   // Discovery is client-initiated: announce ourselves once we see a peer (the
   // host). The memory transport delivers onPeerJoin for the already-present host
   // on a macrotask after construction, so this fires reliably regardless of
-  // join ordering.
+  // join ordering. We latch that peer's id as hostId before sending hello, so
+  // messages arriving from the host are accepted as soon as they land.
   const unsubJoin = transport.onPeerJoin((peerId: PeerId) => {
+    if (hostId === null) {
+      hostId = peerId;
+    }
     transport.send(MSG.hello, {}, peerId);
   });
 
@@ -79,7 +92,8 @@ export function joinClient<S, M>(
     },
     makeMove(move: M): void {
       seq += 1;
-      transport.send(MSG.moveIntent, { move, seq });
+      // Unicast the intent to the host only so it does not leak to spectators.
+      transport.send(MSG.moveIntent, { move, seq }, hostId ?? undefined);
     },
     subscribe(cb: () => void): () => void {
       subscribers.add(cb);
