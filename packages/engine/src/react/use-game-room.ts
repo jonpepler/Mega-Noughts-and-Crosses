@@ -25,6 +25,8 @@ export interface UseGameRoomResult<S, M> {
   makeMove(move: M): void;
   result: GameResult<string>;
   connection: { peers: number };
+  /** The most recent move-rejection reason, or null if there is none. */
+  rejection: { reason: string; seq: number } | null;
 }
 
 /**
@@ -40,6 +42,7 @@ interface RoomSnapshot<S> {
   connectedPlayers: string[];
   myRole: string | null;
   currentPlayer: string | null;
+  lastRejection: { reason: string; seq: number } | null;
 }
 
 const DEFAULT_SEED = 0;
@@ -54,6 +57,7 @@ function snapshotFrom<S, M>(room: GameRoom<S, M>): RoomSnapshot<S> {
     connectedPlayers: [...room.connectedPlayers],
     myRole: room.myRole,
     currentPlayer: room.currentPlayer,
+    lastRejection: room.lastRejection,
   };
 }
 
@@ -83,6 +87,11 @@ function snapshotsEqual<S>(a: RoomSnapshot<S>, b: RoomSnapshot<S>): boolean {
   for (let i = 0; i < a.connectedPlayers.length; i++) {
     if (a.connectedPlayers[i] !== b.connectedPlayers[i]) return false;
   }
+  // Compare lastRejection: treat null/non-null difference, then compare by fields.
+  if (a.lastRejection === null && b.lastRejection === null) return true;
+  if (a.lastRejection === null || b.lastRejection === null) return false;
+  if (a.lastRejection.reason !== b.lastRejection.reason) return false;
+  if (a.lastRejection.seq !== b.lastRejection.seq) return false;
   return true;
 }
 
@@ -227,6 +236,7 @@ export function useGameRoom<S, M>(
       makeMove,
       result: INITIAL_RESULT,
       connection: { peers: 0 },
+      rejection: null,
     };
   }
 
@@ -240,5 +250,6 @@ export function useGameRoom<S, M>(
     result: snapshot.result,
     // Peers = everyone connected besides ourselves, per the authoritative set.
     connection: { peers: Math.max(0, snapshot.connectedPlayers.length - 1) },
+    rejection: snapshot.lastRejection,
   };
 }

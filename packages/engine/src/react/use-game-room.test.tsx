@@ -216,6 +216,62 @@ describe("useGameRoom hook", () => {
     expect(result.current.state).toBe(before);
   });
 
+  test("rejection field reflects client lastRejection after an invalid move", async () => {
+    const factory = makeMemoryFactory();
+    const roomCode = "test-room-rejection-" + Math.random().toString(36).slice(2);
+
+    // Host hook (p0).
+    const { result: hostResult } = renderHook(() =>
+      useGameRoom({
+        definition: tinyGame,
+        factory,
+        roomCode,
+        role: "host",
+        players: ["p0", "p1"],
+        seed: 42,
+      }),
+    );
+
+    // Join hook (p1).
+    const { result: joinResult } = renderHook(() =>
+      useGameRoom({
+        definition: tinyGame,
+        factory,
+        roomCode,
+        role: "join",
+      }),
+    );
+
+    // Wait until both are past "connecting" and client has its role.
+    await waitFor(() => {
+      expect(joinResult.current.myRole).toBe("p1");
+    });
+
+    // Initially rejection is null.
+    expect(joinResult.current.rejection).toBeNull();
+
+    // The join client (p1) moves out of turn (it is p0's turn).
+    act(() => {
+      joinResult.current.makeMove("claim");
+    });
+
+    // The host rejects it; the client's rejection should surface.
+    await waitFor(() => {
+      expect(joinResult.current.rejection).not.toBeNull();
+    });
+
+    expect(joinResult.current.rejection?.reason).toBeDefined();
+
+    // Once the host makes a valid move, the client state updates and rejection clears.
+    act(() => {
+      hostResult.current.makeMove("claim");
+    });
+
+    await waitFor(() => {
+      expect(joinResult.current.rejection).toBeNull();
+    });
+  });
+
   test("makeMove before room exists is a safe no-op", async () => {
     const factory = makeMemoryFactory();
     const roomCode = "test-room-noop";

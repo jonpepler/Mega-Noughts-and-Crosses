@@ -34,6 +34,8 @@ export function startHost<S, M>(
     for (const cb of subscribers) cb();
   }
 
+  let lastRejection: { reason: string; seq: number } | null = null;
+
   /**
    * The host's authoritative set of currently-connected roles, in roster order.
    * The host (players[0]) is always present; assigned peers are added on hello
@@ -150,10 +152,20 @@ export function startHost<S, M>(
     get currentPlayer(): string | null {
       return def.currentPlayer(canonical);
     },
+    get lastRejection(): { reason: string; seq: number } | null {
+      return lastRejection;
+    },
     makeMove(move: M): void {
       if (myRole === null) return;
       const reason = tryApply(move, myRole);
-      if (reason !== null) return; // host's own illegal move is a no-op
+      if (reason !== null) {
+        // Surface the rejection to the host's own subscribers.
+        lastRejection = { reason, seq: 0 };
+        notify();
+        return;
+      }
+      // Successful apply: clear any stale rejection.
+      lastRejection = null;
       broadcastState();
       notify();
     },

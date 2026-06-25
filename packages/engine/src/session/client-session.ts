@@ -4,6 +4,7 @@ import {
   MSG,
   type AssignRolePayload,
   type GameRoom,
+  type RejectedPayload,
   type StatePayload,
 } from "./session";
 
@@ -24,6 +25,7 @@ export function joinClient<S, M>(
   let myRole: string | null = null;
   let currentPlayer: string | null = null;
   let seq = 0;
+  let lastRejection: { reason: string; seq: number } | null = null;
 
   // The peer id of the host, learned at discovery time (when the client sends
   // its `hello`). Only messages from this peer are trusted for `state` and
@@ -54,11 +56,19 @@ export function joinClient<S, M>(
         players = payload.players;
         connectedPlayers = payload.connectedPlayers;
         currentPlayer = payload.currentPlayer;
+        // Clear any stale rejection now that we have a fresh authoritative state.
+        lastRejection = null;
         notify();
         break;
       }
-      // `rejected` carries no state change; the client simply keeps its last
-      // confirmed state. (Surfacing the reason is left to a future task.)
+      case MSG.rejected: {
+        // Only trust rejections from the known host.
+        if (hostId === null || msg.from !== hostId) break;
+        const payload = msg.payload as RejectedPayload;
+        lastRejection = { reason: payload.reason, seq: payload.seq };
+        notify();
+        break;
+      }
       default:
         break;
     }
@@ -94,6 +104,9 @@ export function joinClient<S, M>(
     },
     get currentPlayer(): string | null {
       return currentPlayer;
+    },
+    get lastRejection(): { reason: string; seq: number } | null {
+      return lastRejection;
     },
     makeMove(move: M): void {
       seq += 1;

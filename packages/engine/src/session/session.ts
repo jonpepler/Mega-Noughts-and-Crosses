@@ -23,6 +23,15 @@ export interface GameRoom<State, Move> {
   myRole: string | null;
   /** Whose turn it is per the known state, or null when unknown. */
   currentPlayer: string | null;
+  /**
+   * The most recent move-rejection reason, or null if there is none.
+   * For clients: set when the host sends a `rejected` message; cleared when the
+   * next authoritative `state` update is applied (so a stale rejection does not
+   * linger after a later successful move).
+   * For the host: set when its own local `makeMove` is invalid; cleared on the
+   * next successful local apply.
+   */
+  lastRejection: { reason: string; seq: number } | null;
   /** Host applies locally; client sends an intent to the host. */
   makeMove(move: Move): void;
   /** Notified on any state change; returns an unsubscribe function. */
