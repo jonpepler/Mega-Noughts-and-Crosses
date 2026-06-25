@@ -38,15 +38,13 @@ committed work in flight, pick up the next item.
 - Drop the unused `def` parameter from `joinClient` until client side prediction
   actually needs it.
 
-### Verification still to finish
+### Relay reliability
 
-- Run the adversarial game panel and record its triage in
-  `docs/engine-generality.md` (see below). The first run was interrupted, so the
-  generality review is still pending.
-- Live smoke test of the Nostr transport: confirm two real peers connect over a
-  public relay at least once.
-- Deploy to GitHub Pages and confirm the live URL loads and plays. This needs
-  the repository Pages source set to "GitHub Actions" in Settings, Pages.
+- Some relays in Trystero's default Nostr pool are dead (for example
+  black.nostrcity.club fails DNS and relay.binaryrobot.com returns 530), which
+  prints connection errors to the console even though peers still connect through
+  the working relays. Pin a curated list of known good relays in the Nostr
+  transport config to cut the noise and speed up the first connection.
 
 ## Engine generality
 
