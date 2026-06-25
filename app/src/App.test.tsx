@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom";
 import App from "./App";
 
@@ -122,6 +123,53 @@ describe("App", () => {
       },
       { timeout: 3000 },
     );
+  });
+
+  // -------------------------------------------------------------------------
+  // Theme toggle
+  // -------------------------------------------------------------------------
+
+  test("the theme toggle button is visible in the lobby", () => {
+    setSearch("/");
+    render(<App />);
+    // Button aria-label says "Switch to light theme" or "Switch to dark theme"
+    expect(
+      screen.getByRole("button", { name: /switch to (light|dark) theme/i }),
+    ).toBeInTheDocument();
+  });
+
+  test("clicking the toggle button flips its accessible label", async () => {
+    const user = userEvent.setup();
+    setSearch("/");
+    render(<App />);
+
+    const toggle = screen.getByRole("button", {
+      name: /switch to (light|dark) theme/i,
+    });
+    const originalLabel = toggle.getAttribute("aria-label");
+
+    await user.click(toggle);
+
+    const newLabel = toggle.getAttribute("aria-label");
+    expect(newLabel).not.toBe(originalLabel);
+  });
+
+  test("clicking the toggle changes the --color-bg CSS variable on the ThemeProvider wrapper", async () => {
+    const user = userEvent.setup();
+    setSearch("/");
+    const { container } = render(<App />);
+
+    // ThemeProvider wrapper is the first child of the container
+    const wrapper = container.firstElementChild as HTMLElement;
+    const originalBg = wrapper.style.getPropertyValue("--color-bg");
+
+    const toggle = screen.getByRole("button", {
+      name: /switch to (light|dark) theme/i,
+    });
+    await user.click(toggle);
+
+    const newBg = wrapper.style.getPropertyValue("--color-bg");
+    expect(newBg).not.toBe(originalBg);
   });
 
   test("share link in the waiting state does not contain ?local", async () => {

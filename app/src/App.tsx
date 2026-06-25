@@ -1,12 +1,17 @@
 import React, { useState, useMemo } from "react";
 import { useGameRoom, makeLocalStoragePersistence } from "@mnac/engine";
 import { ThemeProvider } from "./theme/ThemeProvider";
+import { useThemePreference } from "./theme/use-theme-preference";
+import { lightTheme } from "./theme/light-theme";
+import { defaultTheme } from "./theme/default-theme";
+import { ThemeToggle } from "./theme/ThemeToggle";
 import { Lobby } from "./lobby/Lobby";
 import { Board } from "./games/mnac/Board";
 import { mnacGame } from "./games/mnac/mnac-game";
 import { mnacSetup } from "./games/mnac/rules";
 import type { Mark, MnacState, MnacMove } from "./games/mnac/rules";
 import { selectTransportFactory } from "./transport-selection";
+import type { ThemeRepository } from "./theme/tokens";
 
 // ---------------------------------------------------------------------------
 // Persistence (module-level singleton so it survives React renders)
@@ -282,6 +287,12 @@ function GameView({
 // ---------------------------------------------------------------------------
 
 export default function App(): React.JSX.Element {
+  const { mode, toggle } = useThemePreference();
+  const themeRepo: ThemeRepository = useMemo(
+    () => ({ get: () => (mode === "light" ? lightTheme : defaultTheme) }),
+    [mode],
+  );
+
   const search = getSearch();
   const params = new URLSearchParams(search);
   const urlRoomCode = params.get("room");
@@ -332,7 +343,8 @@ export default function App(): React.JSX.Element {
     : search;
 
   return (
-    <ThemeProvider>
+    <ThemeProvider theme={themeRepo}>
+      <ThemeToggle mode={mode} onToggle={toggle} />
       {gameRoom ? (
         <GameView
           roomCode={gameRoom.roomCode}

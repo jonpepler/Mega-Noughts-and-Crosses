@@ -1,6 +1,7 @@
 import { render } from "@testing-library/react";
 import { ThemeProvider } from "./ThemeProvider";
 import { defaultTheme } from "./default-theme";
+import { lightTheme } from "./light-theme";
 import type { ThemeRepository, ThemeTokens } from "./tokens";
 
 describe("ThemeProvider", () => {
@@ -39,5 +40,27 @@ describe("ThemeProvider", () => {
       </ThemeProvider>,
     );
     expect(getByText("hello world")).toBeDefined();
+  });
+
+  test("applies light theme --color-bg when given the light theme repository", () => {
+    const lightRepo: ThemeRepository = { get: () => lightTheme };
+    const { container } = render(
+      <ThemeProvider theme={lightRepo}>
+        <div>child</div>
+      </ThemeProvider>,
+    );
+    const wrapper = container.firstElementChild as HTMLElement;
+    expect(wrapper.style.getPropertyValue("--color-bg")).toBe(lightTheme.color.bg);
+  });
+
+  test("light theme --color-bg is different from dark theme --color-bg", () => {
+    const lightRepo: ThemeRepository = { get: () => lightTheme };
+    const { container } = render(
+      <ThemeProvider theme={lightRepo}>
+        <div>child</div>
+      </ThemeProvider>,
+    );
+    const wrapper = container.firstElementChild as HTMLElement;
+    expect(wrapper.style.getPropertyValue("--color-bg")).not.toBe(defaultTheme.color.bg);
   });
 });
