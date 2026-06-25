@@ -272,6 +272,48 @@ describe("useGameRoom hook", () => {
     });
   });
 
+  // ---------------------------------------------------------------------------
+  // deriveStatus: empty roster (joiner has not yet received host's state)
+  // ---------------------------------------------------------------------------
+
+  test("joiner with empty roster shows 'connecting', not 'playing' (bug regression)", async () => {
+    // This test captures the bug: before the host's first state broadcast
+    // arrives, the client's players roster is []. The old code fell through
+    // `connectedPlayers.length (0) < players.length (0)` (FALSE) and returned
+    // "playing", causing `${currentPlayer ?? "?"}'s turn` to appear in the UI.
+    //
+    // The fix must make an empty roster return "connecting" instead.
+    const factory = makeMemoryFactory();
+    const roomCode = "test-room-empty-roster-" + Math.random().toString(36).slice(2);
+
+    // The joiner connects to a room with no host running (host never joins).
+    // Its snapshot will have players=[] and connectedPlayers=[].
+    const { result: joinResult, unmount } = renderHook(() =>
+      useGameRoom({
+        definition: tinyGame,
+        factory,
+        roomCode,
+        role: "join",
+      }),
+    );
+
+    // While waiting for a host that never arrives the status must remain "connecting".
+    // We poll briefly to ensure the hook has had a chance to settle past the initial null.
+    // The transport establishes quickly but the session will have an empty roster.
+    await waitFor(() => {
+      // status must never flip to "playing" with an empty roster
+      expect(joinResult.current.status).toBe("connecting");
+    });
+
+    // Confirm the roster is indeed empty (the host has never broadcast state)
+    expect(joinResult.current.players).toEqual([]);
+
+    // Critical: must NOT be "playing" — that is the bug being guarded
+    expect(joinResult.current.status).not.toBe("playing");
+
+    unmount();
+  });
+
   test("makeMove before room exists is a safe no-op", async () => {
     const factory = makeMemoryFactory();
     const roomCode = "test-room-noop";

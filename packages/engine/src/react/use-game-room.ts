@@ -102,6 +102,13 @@ function deriveStatus<S>(
   if (snapshot === null) return "connecting";
 
   const { result, players, connectedPlayers } = snapshot;
+
+  // No roster yet means the client has not received the host's state, so it is
+  // still establishing the connection, not playing.
+  // The host always starts with a non-empty roster (startHost requires players),
+  // so this branch only fires for a joiner before the first state broadcast.
+  if (players.length === 0) return "connecting";
+
   if (result.status !== "ongoing") return "ended";
 
   // "playing" once every roster player is connected; otherwise still waiting.

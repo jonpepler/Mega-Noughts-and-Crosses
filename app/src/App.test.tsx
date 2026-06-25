@@ -172,6 +172,30 @@ describe("App", () => {
     expect(newBg).not.toBe(originalBg);
   });
 
+  test("joiner with no host shows 'Connecting' and never shows \"?'s turn\"", async () => {
+    // Regression test: before the fix, a joiner whose players roster was []
+    // would skip "connecting" and land on "playing", which rendered
+    // `${currentPlayer ?? "?"}'s turn` -> "?'s turn".
+    // With the fix, status stays "connecting" until the roster arrives.
+    localStorage.setItem(
+      "mnac:room",
+      JSON.stringify({ roomCode: "joinonly", role: "join", seed: 0 }),
+    );
+    setSearch("/?room=joinonly&local");
+    render(<App />);
+
+    await waitFor(
+      () => {
+        const statusEl = screen.getByRole("status");
+        expect(statusEl).toBeInTheDocument();
+        // Must show "Connecting" (or "Waiting") — never "?'s turn"
+        expect(statusEl.textContent).not.toMatch(/\?'s turn/);
+        expect(statusEl.textContent).toMatch(/connecting|waiting/i);
+      },
+      { timeout: 3000 },
+    );
+  });
+
   test("share link in the waiting state does not contain ?local", async () => {
     localStorage.setItem(
       "mnac:room",
