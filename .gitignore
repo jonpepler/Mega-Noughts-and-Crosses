@@ -26,3 +26,6 @@ test-results/
 
 # Superpowers working docs (specs and plans)
 docs/superpowers/
+
+# Playwright MCP artifacts
+.playwright-mcp/
