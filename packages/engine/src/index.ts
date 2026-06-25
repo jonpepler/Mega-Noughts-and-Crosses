@@ -20,6 +20,11 @@ export {
   makeBroadcastChannelFactory,
   BroadcastChannelTransport,
 } from "./transport/broadcast-channel";
+export { makeNostrFactory, NostrTransport } from "./transport/nostr";
+
+// Repositories
+export type { PersistenceRepository } from "./repositories/persistence";
+export { makeLocalStoragePersistence } from "./repositories/persistence";
 
 // Session
 export { startHost, joinClient } from "./session";
