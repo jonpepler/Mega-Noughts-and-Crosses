@@ -77,22 +77,30 @@ describe("App", () => {
   });
 
   test("?role=host makes the app host even with no localStorage entry", async () => {
-    // No localStorage entry — without ?role override it would be a joiner
+    // No localStorage entry — without ?role override it would be a joiner.
+    // The host plays X; X moves first, so on a fresh game the host's cells
+    // are enabled (myMark === currentPlayer === "X") even before an opponent
+    // connects. This assertion FAILS if resolveRole ignores the override.
     setSearch("/?room=roletest&local&role=host");
     render(<App />);
 
-    // The app should enter game view (board or status rendered)
     await waitFor(
       () => {
-        const statusEl = screen.getByRole("status");
-        expect(statusEl).toBeInTheDocument();
+        // At least one board cell button must be enabled for the host (X) to move.
+        const cells = screen
+          .getAllByRole("button", { name: /board \d cell \d/i })
+          .filter((btn) => !btn.hasAttribute("disabled"));
+        expect(cells.length).toBeGreaterThan(0);
       },
       { timeout: 3000 },
     );
   });
 
   test("?role=join makes the app a joiner even if localStorage says host", async () => {
-    // Persist as host — but ?role=join should override
+    // Persist as host — but ?role=join should override.
+    // The joiner has no opponent yet: myRole is null (no host has assigned it),
+    // so every board cell is disabled. This assertion FAILS if resolveRole
+    // ignores the override and treats the page as host (X) instead.
     localStorage.setItem(
       "mnac:room",
       JSON.stringify({ roomCode: "roletest2", role: "host", seed: 42 }),
@@ -102,8 +110,15 @@ describe("App", () => {
 
     await waitFor(
       () => {
-        const statusEl = screen.getByRole("status");
-        expect(statusEl).toBeInTheDocument();
+        // The board must be rendered (cells present) and all cells must be disabled
+        // because no host has assigned a role to this lone joiner page.
+        const cells = screen.getAllByRole("button", {
+          name: /board \d cell \d/i,
+        });
+        expect(cells.length).toBeGreaterThan(0);
+        for (const cell of cells) {
+          expect(cell).toBeDisabled();
+        }
       },
       { timeout: 3000 },
     );

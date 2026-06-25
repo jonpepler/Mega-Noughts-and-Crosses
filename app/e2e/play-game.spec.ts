@@ -12,102 +12,13 @@
  */
 
 import { test, expect } from "@playwright/test";
-import type { MnacState, MnacMove, Mark } from "../src/games/mnac/rules";
-
-// ---------------------------------------------------------------------------
-// Inline rule implementation (mirrors app/src/games/mnac/rules.ts) so the
-// spec can verify the sequence without importing from the built app.
-// ---------------------------------------------------------------------------
-
-const LINES: [number, number, number][] = [
-  [0, 1, 2],
-  [3, 4, 5],
-  [6, 7, 8],
-  [0, 3, 6],
-  [1, 4, 7],
-  [2, 5, 8],
-  [0, 4, 8],
-  [2, 4, 6],
-];
-
-function lineWinner(cells: (Mark | null)[]): Mark | null {
-  for (const [a, b, c] of LINES) {
-    const v = cells[a];
-    if (v !== null && v === cells[b] && v === cells[c]) return v;
-  }
-  return null;
-}
-
-type SubResult =
-  | { status: "ongoing" }
-  | { status: "won"; by: Mark }
-  | { status: "draw" };
-
-function computeSubResult(cells: (Mark | null)[]): SubResult {
-  const winner = lineWinner(cells);
-  if (winner !== null) return { status: "won", by: winner };
-  if (cells.every((c) => c !== null)) return { status: "draw" };
-  return { status: "ongoing" };
-}
-
-function computeOverallResult(
-  subResults: SubResult[],
-): { status: "ongoing" } | { status: "draw" } | { status: "win"; winner: Mark } {
-  const topCells: (Mark | null)[] = subResults.map((r) =>
-    r.status === "won" ? r.by : null,
-  );
-  const winner = lineWinner(topCells);
-  if (winner !== null) return { status: "win", winner };
-  if (subResults.every((r) => r.status !== "ongoing")) return { status: "draw" };
-  return { status: "ongoing" };
-}
-
-function mnacSetup(): MnacState {
-  return {
-    boards: Array.from({ length: 9 }, () => Array<Mark | null>(9).fill(null)),
-    subResults: Array.from({ length: 9 }, () => ({
-      status: "ongoing" as const,
-    })),
-    turn: "X",
-    forcedBoard: null,
-    result: { status: "ongoing" },
-  };
-}
-
-function mnacApply(s: MnacState, m: MnacMove): MnacState {
-  const newBoards = s.boards.map((b) => [...b]);
-  newBoards[m.board][m.cell] = s.turn;
-  const newSubResults = [...s.subResults] as SubResult[];
-  newSubResults[m.board] = computeSubResult(newBoards[m.board]);
-  const targetSub = newSubResults[m.cell as number];
-  const nextForced =
-    targetSub.status === "ongoing" ? (m.cell as number) : null;
-  const nextTurn: Mark = s.turn === "X" ? "O" : "X";
-  const newResult = computeOverallResult(newSubResults);
-  return {
-    boards: newBoards,
-    subResults: newSubResults as MnacState["subResults"],
-    turn: nextTurn,
-    forcedBoard: nextForced as MnacState["forcedBoard"],
-    result: newResult as MnacState["result"],
-  };
-}
-
-function mnacValidate(
-  s: MnacState,
-  m: MnacMove,
-  by: Mark,
-): { ok: true } | { ok: false; reason: string } {
-  if (s.result.status !== "ongoing") return { ok: false, reason: "game over" };
-  if (by !== s.turn) return { ok: false, reason: `not ${by}'s turn` };
-  if (s.subResults[m.board].status !== "ongoing")
-    return { ok: false, reason: "board decided" };
-  if (s.forcedBoard !== null && m.board !== s.forcedBoard)
-    return { ok: false, reason: `forced to ${s.forcedBoard}` };
-  if (s.boards[m.board][m.cell] !== null)
-    return { ok: false, reason: "cell occupied" };
-  return { ok: true };
-}
+import {
+  mnacSetup,
+  mnacApply,
+  mnacValidate,
+  type MnacMove,
+  type Mark,
+} from "../src/games/mnac/rules";
 
 // ---------------------------------------------------------------------------
 // Pre-computed winning sequence (X wins in 37 moves).
@@ -166,7 +77,7 @@ const MOVES: MnacMove[] = [
         `MOVES[${i}] board=${m.board} cell=${m.cell} by=${by} invalid: ${v.reason}`,
       );
     }
-    s = mnacApply(s, m);
+    s = mnacApply(s, m, by);
   }
   if (s.result.status !== "win" || s.result.winner !== "X") {
     throw new Error(
