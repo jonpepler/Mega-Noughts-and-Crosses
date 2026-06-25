@@ -14,9 +14,21 @@ import {
  * is replaced solely by the host's confirmed `state` broadcasts. It learns its
  * role from the host's `assign-role` message.
  */
+/** How often the client re-sends `hello` while still waiting to sync, and the
+ * cap on attempts so a never-answering host cannot loop forever. */
+const DEFAULT_HELLO_RETRY_MS = 1000;
+const MAX_HELLO_ATTEMPTS = 30;
+
+export interface JoinClientOptions {
+  /** Interval between `hello` re-sends while the handshake is incomplete. */
+  helloRetryMs?: number;
+}
+
 export function joinClient<S, M>(
   transport: Transport,
+  opts: JoinClientOptions = {},
 ): GameRoom<S, M> {
+  const helloRetryMs = opts.helloRetryMs ?? DEFAULT_HELLO_RETRY_MS;
   let state: S | null = null;
   let result: GameResult<string> = { status: "ongoing" };
   let players: string[] = [];
@@ -31,6 +43,43 @@ export function joinClient<S, M>(
   // `assign-role`; anything from a different sender is ignored.
   let hostId: PeerId | null = null;
 
+  // Self-healing handshake. The first `hello` can be dropped if the WebRTC
+  // data channel is not open yet (and so can the host's reply), so we re-send
+  // `hello` on an interval until we have BOTH our role and at least one state,
+  // then stop. Capped so a never-answering host cannot loop forever, and torn
+  // down on leave so there are no post-leave sends.
+  let left = false;
+  let helloTimer: ReturnType<typeof setInterval> | null = null;
+  let helloAttempts = 0;
+
+  function isSynced(): boolean {
+    return myRole !== null && state !== null;
+  }
+
+  function stopHelloRetry(): void {
+    if (helloTimer !== null) {
+      clearInterval(helloTimer);
+      helloTimer = null;
+    }
+  }
+
+  function startHelloRetry(): void {
+    if (helloTimer !== null) return; // already retrying
+    helloTimer = setInterval(() => {
+      if (left || hostId === null) {
+        stopHelloRetry();
+        return;
+      }
+      if (isSynced() || helloAttempts >= MAX_HELLO_ATTEMPTS) {
+        // Synced, or we have exhausted retries: give up and stay as-is.
+        stopHelloRetry();
+        return;
+      }
+      helloAttempts += 1;
+      transport.send(MSG.hello, {}, hostId);
+    }, helloRetryMs);
+  }
+
   const subscribers = new Set<() => void>();
   function notify(): void {
     for (const cb of subscribers) cb();
@@ -43,6 +92,7 @@ export function joinClient<S, M>(
         if (hostId === null || msg.from !== hostId) break;
         const payload = msg.payload as AssignRolePayload;
         myRole = payload.playerId;
+        if (isSynced()) stopHelloRetry();
         notify();
         break;
       }
@@ -57,6 +107,7 @@ export function joinClient<S, M>(
         currentPlayer = payload.currentPlayer;
         // Clear any stale rejection now that we have a fresh authoritative state.
         lastRejection = null;
+        if (isSynced()) stopHelloRetry();
         notify();
         break;
       }
@@ -79,10 +130,14 @@ export function joinClient<S, M>(
   // join ordering. We latch that peer's id as hostId before sending hello, so
   // messages arriving from the host are accepted as soon as they land.
   const unsubJoin = transport.onPeerJoin((peerId: PeerId) => {
+    if (left) return;
     if (hostId === null) {
       hostId = peerId;
     }
+    // Send the first hello immediately; the interval is the recovery path for
+    // when this one (or the host's reply) is dropped on a not-yet-open channel.
     transport.send(MSG.hello, {}, peerId);
+    if (!isSynced()) startHelloRetry();
   });
 
   const room: GameRoom<S, M> = {
@@ -119,6 +174,8 @@ export function joinClient<S, M>(
       };
     },
     leave(): void {
+      left = true;
+      stopHelloRetry();
       unsubMessage();
       unsubJoin();
       subscribers.clear();
